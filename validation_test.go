@@ -31,8 +31,10 @@ func TestValidatePartialTreeForRealz(t *testing.T) {
 	for i := uint64(0); i < 8; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
-	root := tree.Root()   // 4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0
-	proof := tree.Proof() // 05 6b 13
+	root, err := tree.Root()   // 4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0
+	req.NoError(err)
+	proof, err := tree.Proof() // 05 6b 13
+	req.NoError(err)
 
 	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root)
 	req.NoError(err)
@@ -58,8 +60,10 @@ func TestValidatePartialTreeMulti(t *testing.T) {
 	for i := uint64(0); i < 8; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
-	root := tree.Root()   // 4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0
-	proof := tree.Proof() // 05 6b 13
+	root, err := tree.Root()   // 4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0
+	req.NoError(err)
+	proof, err := tree.Proof() // 05 6b 13
+	req.NoError(err)
 
 	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root)
 	req.NoError(err)
@@ -86,8 +90,10 @@ func TestValidatePartialTreeMulti2(t *testing.T) {
 	for i := uint64(0); i < 8; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
-	root := tree.Root()   // 4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0
-	proof := tree.Proof() // 05 6b 13
+	root, err := tree.Root()   // 4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0
+	req.NoError(err)
+	proof, err := tree.Proof() // 05 6b 13
+	req.NoError(err)
 
 	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root)
 	req.NoError(err)

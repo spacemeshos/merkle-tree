@@ -24,7 +24,19 @@ func TestNewTree(t *testing.T) {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
 	expectedRoot, _ := NewNodeFromHex("4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0")
-	require.Equal(t, expectedRoot, tree.Root())
+	root, err := tree.Root()
+	require.NoError(t, err)
+	require.Equal(t, expectedRoot, root)
+}
+
+func TestNewTreeNotPowerOf2(t *testing.T) {
+	tree := NewTree()
+	for i := uint64(0); i < 9; i++ {
+		tree.AddLeaf(NewNodeFromUint64(i))
+	}
+	root, err := tree.Root()
+	require.Error(t, err)
+	require.Nil(t, root)
 }
 
 func BenchmarkNewTree(b *testing.B) {
@@ -52,14 +64,18 @@ func TestNewProvingTree(t *testing.T) {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
 	expectedRoot, _ := NewNodeFromHex("4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0")
-	require.Equal(t, expectedRoot, tree.Root())
+	root, err := tree.Root()
+	require.NoError(t, err)
+	require.Equal(t, expectedRoot, root)
 
 	expectedProof := make([]Node, 3)
 	expectedProof[0], _ = NewNodeFromHex("0500000000000000")
 	expectedProof[1], _ = NewNodeFromHex("6b2e10cb2111114ce942174c38e7ea38864cc364a8fe95c66869c85888d812da")
 	expectedProof[2], _ = NewNodeFromHex("13c04a6157aa640f711d230a4f04bc2b19e75df1127dfc899f025f3aa282912d")
 
-	require.EqualValues(t, expectedProof, tree.Proof())
+	proof, err := tree.Proof()
+	require.NoError(t, err)
+	require.EqualValues(t, expectedProof, proof)
 
 	/***********************************
 	|                4a                |
@@ -75,7 +91,9 @@ func TestNewProvingTreeMultiProof(t *testing.T) {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
 	expectedRoot, _ := NewNodeFromHex("4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0")
-	require.Equal(t, expectedRoot, tree.Root())
+	root, err := tree.Root()
+	require.NoError(t, err)
+	require.Equal(t, expectedRoot, root)
 
 	expectedProof := make([]Node, 4)
 	expectedProof[0], _ = NewNodeFromHex("0000000000000000")
@@ -83,7 +101,9 @@ func TestNewProvingTreeMultiProof(t *testing.T) {
 	expectedProof[2], _ = NewNodeFromHex("0500000000000000")
 	expectedProof[3], _ = NewNodeFromHex("6b2e10cb2111114ce942174c38e7ea38864cc364a8fe95c66869c85888d812da")
 
-	require.EqualValues(t, expectedProof, tree.Proof())
+	proof, err := tree.Proof()
+	require.NoError(t, err)
+	require.EqualValues(t, expectedProof, proof)
 
 	/***********************************
 	|                4a                |
@@ -99,14 +119,18 @@ func TestNewProvingTreeMultiProof2(t *testing.T) {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
 	expectedRoot, _ := NewNodeFromHex("4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0")
-	require.Equal(t, expectedRoot, tree.Root())
+	root, err := tree.Root()
+	require.NoError(t, err)
+	require.Equal(t, expectedRoot, root)
 
 	expectedProof := make([]Node, 3)
 	expectedProof[0], _ = NewNodeFromHex("fe6d3d3bb5dd778af1128cc7b2b33668d51b9a52dfc8f2342be37ddc06a0072d")
 	expectedProof[1], _ = NewNodeFromHex("0500000000000000")
 	expectedProof[2], _ = NewNodeFromHex("6b2e10cb2111114ce942174c38e7ea38864cc364a8fe95c66869c85888d812da")
 
-	require.EqualValues(t, expectedProof, tree.Proof())
+	proof, err := tree.Proof()
+	require.NoError(t, err)
+	require.EqualValues(t, expectedProof, proof)
 
 	/***********************************
 	|                4a                |

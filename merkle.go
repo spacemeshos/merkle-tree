@@ -1,14 +1,15 @@
 package merkle
 
 import (
+	"errors"
 	"fmt"
 	"github.com/spacemeshos/sha256-simd"
 )
 
 type Tree interface {
 	AddLeaf(leaf Node)
-	Root() Node
-	Proof() []Node
+	Root() (Node, error)
+	Proof() ([]Node, error)
 }
 
 type incrementalTree struct {
@@ -85,15 +86,31 @@ func getParent(leftChild, rightChild Node) Node {
 	return res[:]
 }
 
-func (t *incrementalTree) Root() Node {
-	return t.path[len(t.path)-1]
+func (t *incrementalTree) Root() (Node, error) {
+	for i, n := range t.path {
+		if i == len(t.path)-1 {
+			return n, nil
+		}
+		if n != nil {
+			return nil, errors.New("number of leaves must be a power of 2")
+		}
+	}
+	panic("we broke the laws of the universe!")
 }
 
-func (t *incrementalTree) Proof() []Node {
+func (t *incrementalTree) Proof() ([]Node, error) {
 	if len(t.path) < 5 {
 		printTree(t.nodes) // TODO @noam: Remove!
 	}
-	return t.proof
+	for i, n := range t.path {
+		if i == len(t.path)-1 {
+			return t.proof, nil
+		}
+		if n != nil {
+			return nil, errors.New("number of leaves must be a power of 2")
+		}
+	}
+	panic("we broke the laws of the universe!")
 }
 
 func (t *incrementalTree) isNodeInProvedPath(path uint64, layer uint) bool {
