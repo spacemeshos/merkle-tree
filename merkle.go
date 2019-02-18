@@ -5,15 +5,28 @@ import (
 	"github.com/spacemeshos/sha256-simd"
 )
 
+// Tree calculates a merkle tree root. It can optionally calculate a proof, or partial tree, for leaves defined in
+// advance. Leaves are appended to the tree incrementally. It uses O(log(n)) memory to calculate the root and
+// O(k*log(n)) (k being the number of leaves to prove) memory to calculate proofs.
+//
+// Tree is NOT thread safe.
+//
+// It has the following methods:
+//
+// 	AddLeaf(leaf Node)
+// AddLeaf updates the state of the tree with another leaf.
+//
+//	Root() (Node, error)
+// Root returns the root of the tree or an error if the number of leaves added is not a power of 2.
+//
+//	Proof() ([]Node, error)
+// Proof returns a partial tree proving the membership of leaves that were passed in leavesToProve when the tree was
+// initialized or an error if the number of leaves added is not a power of 2. For a single proved leaf this is a
+// standard merkle proof (one sibling per layer of the tree from the leaves to the root, excluding the proved leaf
+// and root).
 type Tree interface {
-	// AddLeaf updates the state of the tree with another leaf.
 	AddLeaf(leaf Node)
-	// Root returns the root of the tree or an error if the number of leaves added is not a power of 2.
 	Root() (Node, error)
-	// Proof returns a partial tree proving the membership of leaves that were passed in leavesToProve when the tree was
-	// initialized or an error if the number of leaves added is not a power of 2. For a single proved leaf this is a
-	// standard merkle proof (one sibling per layer of the tree from the leaves to the root, excluding the proved leaf
-	// and root).
 	Proof() ([]Node, error)
 }
 
