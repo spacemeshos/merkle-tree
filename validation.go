@@ -9,6 +9,8 @@ import (
 
 const MaxUint = ^uint(0)
 
+// ValidatePartialTree uses leafIndices, leaves and proof to calculate the merkle root of the tree and then compares it
+// to expectedRoot.
 func ValidatePartialTree(leafIndices []uint64, leaves, proof []Node, expectedRoot Node) (bool, error) {
 	v, err := newValidator(leafIndices, leaves, proof)
 	if err != nil {
@@ -74,15 +76,22 @@ func (v *validator) calcRoot(stopAtLayer uint) Node {
 	return activeNode
 }
 
+// leftSibling returns true if the sibling of the node at the current layer on the path to leaf with index idx is on the
+// left.
 func leftSibling(idx uint64, layer uint) bool {
+	// Is the bit at layer+1 equal 1?
 	return (idx/(1<<layer))%2 == 1
 }
 
+// shouldCalcSubtree returns true if the paths to idx (current leaf) and the nextIdx (next one) diverge at the current
+// layer, so the next sibling should be the root of the subtree to the right.
 func (v *validator) shouldCalcSubtree(idx uint64, layer uint) bool {
 	nextIdx, err := v.leaves.peek()
 	if err == noMoreItems {
 		return false
 	}
+	// When eliminating the `layer` most insignificant bits of the bitwise xor of the current and next leaf index we
+	// expect to get 1 at the divergence point.
 	return (idx^nextIdx)/(1<<layer) == 1
 }
 
@@ -106,6 +115,7 @@ type leafIterator struct {
 	leaves  []Node
 }
 
+// leafIterator.next() returns the leaf index and value
 func (it *leafIterator) next() (uint64, Node, error) {
 	if len(it.indices) == 0 {
 		return 0, nil, noMoreItems
@@ -117,6 +127,7 @@ func (it *leafIterator) next() (uint64, Node, error) {
 	return idx, leaf, nil
 }
 
+// leafIterator.peek() returns the leaf index but doesn't move the iterator to this leaf as next would do
 func (it *leafIterator) peek() (uint64, error) {
 	if len(it.indices) == 0 {
 		return 0, noMoreItems
