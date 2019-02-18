@@ -2,7 +2,6 @@ package merkle
 
 import (
 	"errors"
-	"fmt"
 	"github.com/spacemeshos/sha256-simd"
 )
 
@@ -23,7 +22,6 @@ type incrementalTree struct {
 	currentLeaf   uint64
 	leavesToProve []uint64
 	proof         []Node
-	nodes         [][]Node // TODO @noam: Remove!
 }
 
 // NewTree creates an empty tree structure that leaves can be added to. When all leaves have been added the root can be
@@ -32,7 +30,6 @@ func NewTree() Tree {
 	return &incrementalTree{
 		path:        make([]Node, 0),
 		currentLeaf: 0,
-		nodes:       make([][]Node, 0), // TODO @noam: Remove!
 	}
 }
 
@@ -45,7 +42,6 @@ func NewProvingTree(leavesToProve []uint64) Tree {
 		currentLeaf:   0,
 		leavesToProve: leavesToProve,
 		proof:         make([]Node, 0),
-		nodes:         make([][]Node, 0), // TODO @noam: Remove!
 	}
 }
 
@@ -54,12 +50,6 @@ func (t *incrementalTree) AddLeaf(leaf Node) {
 	for i := 0; true; i++ {
 		if len(t.path) == i {
 			t.path = append(t.path, nil)
-		}
-		if len(t.path) < 5 {
-			if len(t.nodes) == i {
-				t.nodes = append(t.nodes, nil)
-			}
-			t.nodes[i] = append(t.nodes[i], activeNode) // TODO @noam: Remove!
 		}
 		if t.path[i] == nil {
 			t.path[i] = activeNode
@@ -116,9 +106,6 @@ func (t *incrementalTree) Root() (Node, error) {
 }
 
 func (t *incrementalTree) Proof() ([]Node, error) {
-	if len(t.path) < 5 {
-		printTree(t.nodes) // TODO @noam: Remove!
-	}
 	for i, n := range t.path {
 		if i == len(t.path)-1 {
 			return t.proof, nil
@@ -138,11 +125,4 @@ func (t *incrementalTree) isNodeInProvedPath(path uint64, layer uint) bool {
 		}
 	}
 	return false
-}
-
-// TODO @noam: Remove!
-func printTree(nodes [][]Node) {
-	for _, n := range nodes {
-		defer fmt.Println(n)
-	}
 }

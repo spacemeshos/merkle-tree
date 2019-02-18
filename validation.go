@@ -2,7 +2,6 @@ package merkle
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 )
@@ -48,7 +47,6 @@ func (v *validator) calcRoot(stopAtLayer uint) Node {
 		panic(err) // this should never happen since we verify there are more leaves before calling calcRoot
 	}
 	var leftChild, rightChild, sibling Node
-	println()
 	for {
 		if layer == stopAtLayer {
 			break
@@ -69,10 +67,7 @@ func (v *validator) calcRoot(stopAtLayer uint) Node {
 		}
 		activeNode = getParent(leftChild, rightChild)
 		layer++
-		fmt.Println(leftChild, " + ", rightChild, " => ", activeNode)
 	}
-	fmt.Println(hex.EncodeToString(activeNode))
-	println()
 	return activeNode
 }
 
