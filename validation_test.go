@@ -1,7 +1,6 @@
 package merkle
 
 import (
-	"encoding/hex"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -16,7 +15,7 @@ func TestValidatePartialTree(t *testing.T) {
 		NewNodeFromUint64(0),
 		NewNodeFromUint64(0),
 	}
-	root, _ := hex.DecodeString("62b525ec807e21a1fd12d06905d85c4b7bc1feacfa57789d95702f6b69ce129f")
+	root, _ := NewNodeFromHex("62b525ec807e21a1fd12d06905d85c4b7bc1feacfa57789d95702f6b69ce129f")
 	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")
