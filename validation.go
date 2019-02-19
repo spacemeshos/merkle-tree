@@ -75,7 +75,7 @@ func (v *validator) calcRoot(stopAtLayer uint) Node {
 // left.
 func leftSibling(idx uint64, layer uint) bool {
 	// Is the bit at layer+1 equal 1?
-	return (idx/(1<<layer))%2 == 1
+	return (idx>>layer)%2 == 1
 }
 
 // shouldCalcSubtree returns true if the paths to idx (current leaf) and the nextIdx (next one) diverge at the current
@@ -87,7 +87,7 @@ func (v *validator) shouldCalcSubtree(idx uint64, layer uint) bool {
 	}
 	// When eliminating the `layer` most insignificant bits of the bitwise xor of the current and next leaf index we
 	// expect to get 1 at the divergence point.
-	return (idx^nextIdx)/(1<<layer) == 1
+	return (idx^nextIdx)>>layer == 1
 }
 
 var noMoreItems = errors.New("no more items")

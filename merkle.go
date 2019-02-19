@@ -103,12 +103,13 @@ func (t *incrementalTree) addToProofIfNeeded(currentLayer uint, leftChild, right
 	}
 }
 
-// getPaths uses the currentLeaf and layer to return the path from the root of the tree to the current node being added
-// (parent) and each of its children, as a number: each binary digit represents a left (0) or right (1) turn.
+// getPaths returns the path from the root of the tree to currentLeaf up to the requested layer (parent). It also
+// returns the path to each of its children.
+// Paths are represented as numbers: each binary digit represents a left (0) or right (1) turn.
 func getPaths(currentLeaf uint64, layer uint) (parentPath, leftChildPath, rightChildPath uint64) {
 	// This eliminates the layer+1 most insignificant digits, which represent the path from the current layer to the
 	// bottom of the tree (the leaves).
-	parentPath = currentLeaf / (1 << (layer + 1))
+	parentPath = currentLeaf >> (layer + 1)
 	// We then add a step in the path for the children with 0 for the left child and 1 for the right child.
 	return parentPath, parentPath << 1, parentPath<<1 + 1
 }
@@ -151,10 +152,10 @@ func (t *incrementalTree) isFull() bool {
 }
 
 func (t *incrementalTree) isNodeInProvedPath(path uint64, layer uint) bool {
-	// When we divide a leaf index by this divisor we get the path towards the leaf from the root to the current layer.
-	var divisor uint64 = 1 << layer
 	for _, leafToProve := range t.leavesToProve {
-		if leafToProve/divisor == path {
+		// When we shift a leaf index right by the layer we get the path towards the leaf from the root to the current
+		// layer.
+		if leafToProve>>layer == path {
 			return true
 		}
 	}
