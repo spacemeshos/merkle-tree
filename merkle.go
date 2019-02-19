@@ -87,7 +87,7 @@ func (t *incrementalTree) addToProofIfNeeded(currentLayer uint, leftChild, right
 		return
 	}
 	// Calculate the paths to the parent and each child
-	parentPath, leftChildPath, rightChildPath := getPaths(t.currentLeaf, currentLayer)
+	parentPath, leftChildPath, rightChildPath := getPathsToNodeAndItsChildren(t.currentLeaf, currentLayer+1)
 	if t.isNodeInProvedPath(parentPath, currentLayer+1) {
 		// We need to be able to calculate the parent.
 		// If the left child isn't in the proved path - we need to include it in the proof.
@@ -103,15 +103,15 @@ func (t *incrementalTree) addToProofIfNeeded(currentLayer uint, leftChild, right
 	}
 }
 
-// getPaths returns the path from the root of the tree to currentLeaf up to the requested layer (parent). It also
-// returns the path to each of its children.
+// getPathsToNodeAndItsChildren returns the path from the root of the tree to leaf up to the requested layer (node). It
+// also returns the path to each of the node's children.
 // Paths are represented as numbers: each binary digit represents a left (0) or right (1) turn.
-func getPaths(currentLeaf uint64, layer uint) (parentPath, leftChildPath, rightChildPath uint64) {
-	// This eliminates the layer+1 most insignificant digits, which represent the path from the current layer to the
+func getPathsToNodeAndItsChildren(leaf uint64, layer uint) (nodePath, leftChildPath, rightChildPath uint64) {
+	// This eliminates the layer most insignificant digits, which represent the path from the requested layer to the
 	// bottom of the tree (the leaves).
-	parentPath = currentLeaf >> (layer + 1)
+	nodePath = leaf >> layer
 	// We then add a step in the path for the children with 0 for the left child and 1 for the right child.
-	return parentPath, parentPath << 1, parentPath<<1 + 1
+	return nodePath, nodePath << 1, nodePath<<1 + 1
 }
 
 // getParent calculates the sha256 sum of child nodes to return their parent.
