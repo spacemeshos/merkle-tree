@@ -120,31 +120,34 @@ func getParent(leftChild, rightChild Node) Node {
 }
 
 func (t *incrementalTree) Root() (Node, error) {
-	for i, n := range t.pendingLeftSiblings {
-		if i == len(t.pendingLeftSiblings)-1 {
-			// We're at the end of the list and didn't encounter a pending left sibling - so this is the root.
-			return n, nil
-		}
-		if n != nil {
-			// If we found a non-nil sibling before the top of the list it means the leaf count isn't a power of 2.
-			return nil, errors.New("number of leaves must be a power of 2")
-		}
+	if t.isFull() {
+		return t.pendingLeftSiblings[len(t.pendingLeftSiblings)-1], nil
+	} else {
+		return nil, errors.New("number of leaves must be a power of 2")
 	}
-	panic("we broke the laws of the universe!")
 }
 
 func (t *incrementalTree) Proof() ([]Node, error) {
+	if t.isFull() {
+		return t.proof, nil
+	} else {
+		return nil, errors.New("number of leaves must be a power of 2")
+	}
+}
+
+func (t *incrementalTree) isFull() bool {
 	for i, n := range t.pendingLeftSiblings {
 		if i == len(t.pendingLeftSiblings)-1 {
-			// We're at the end of the list and didn't encounter a pending left sibling - so the proof is complete.
-			return t.proof, nil
+			// We're at the end of the list and didn't encounter a pending left sibling - so the tree is full.
+			return true
 		}
 		if n != nil {
 			// If we found a non-nil sibling before the top of the list it means the leaf count isn't a power of 2.
-			return nil, errors.New("number of leaves must be a power of 2")
+			return false
 		}
 	}
-	panic("we broke the laws of the universe!")
+	// Tree is empty.
+	return false
 }
 
 func (t *incrementalTree) isNodeInProvedPath(path uint64, layer uint) bool {
