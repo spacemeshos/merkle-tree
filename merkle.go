@@ -52,6 +52,8 @@ func NewProvingTree(leavesToProve []uint64) Tree {
 	}
 }
 
+// AddLeaf incorporates a new leaf to the state of the tree. It updates the state required to eventually determine the
+// root of the tree and also updates the proof, if applicable.
 func (t *Tree) AddLeaf(leaf Node) {
 	activeNode := leaf
 	for layer := 0; true; layer++ {
@@ -75,6 +77,9 @@ func (t *Tree) AddLeaf(leaf Node) {
 	t.currentLeaf++
 }
 
+// addToProofIfNeeded considers the currently-being-processed nodes for inclusion in the proof. It uses the tree's
+// currentLeaf and the received currentLayer to determine if any of the two nodes currently in memory needs to be needs
+// to be appended to the tree's proof slice.
 func (t *Tree) addToProofIfNeeded(currentLayer uint, leftChild, rightChild Node) {
 	if len(t.leavesToProve) == 0 {
 		// No proof was requested.
