@@ -120,19 +120,17 @@ func getParent(leftChild, rightChild Node) Node {
 }
 
 func (t *Tree) Root() (Node, error) {
-	if t.isFull() {
-		return t.pendingLeftSiblings[len(t.pendingLeftSiblings)-1], nil
-	} else {
+	if !t.isFull() {
 		return nil, errors.New("number of leaves must be a power of 2")
 	}
+	return t.pendingLeftSiblings[len(t.pendingLeftSiblings)-1], nil
 }
 
 func (t *Tree) Proof() ([]Node, error) {
-	if t.isFull() {
-		return t.proof, nil
-	} else {
+	if !t.isFull() {
 		return nil, errors.New("number of leaves must be a power of 2")
 	}
+	return t.proof, nil
 }
 
 func (t *Tree) isFull() bool {
