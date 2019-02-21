@@ -24,13 +24,7 @@ import (
 // initialized or an error if the number of leaves added is not a power of 2. For a single proved leaf this is a
 // standard merkle proof (one sibling per layer of the tree from the leaves to the root, excluding the proved leaf
 // and root).
-type Tree interface {
-	AddLeaf(leaf Node)
-	Root() (Node, error)
-	Proof() ([]Node, error)
-}
-
-type incrementalTree struct {
+type Tree struct {
 	pendingLeftSiblings []Node
 	currentLeaf         uint64
 	leavesToProve       []uint64
@@ -40,17 +34,17 @@ type incrementalTree struct {
 // NewTree creates an empty tree structure that leaves can be added to. When all leaves have been added the root can be
 // queried.
 func NewTree() Tree {
-	return &incrementalTree{
+	return Tree{
 		pendingLeftSiblings: make([]Node, 0),
 		currentLeaf:         0,
 	}
 }
 
-// NewTree creates an empty tree structure that leaves can be added to. While the tree is constructed a single proof is
-// generated that proves membership of all leaves included in leavesToProve. When all leaves have been added the root
-// and proof can be queried.
+// NewProvingTree creates an empty tree structure that leaves can be added to. While the tree is constructed a single
+// proof is generated that proves membership of all leaves included in leavesToProve. When all leaves have been added
+// the root and proof can be queried.
 func NewProvingTree(leavesToProve []uint64) Tree {
-	return &incrementalTree{
+	return Tree{
 		pendingLeftSiblings: make([]Node, 0),
 		currentLeaf:         0,
 		leavesToProve:       leavesToProve,
@@ -58,7 +52,7 @@ func NewProvingTree(leavesToProve []uint64) Tree {
 	}
 }
 
-func (t *incrementalTree) AddLeaf(leaf Node) {
+func (t *Tree) AddLeaf(leaf Node) {
 	activeNode := leaf
 	for layer := 0; true; layer++ {
 		// If pendingLeftSiblings is shorter than the current layer - extend it.
@@ -81,7 +75,7 @@ func (t *incrementalTree) AddLeaf(leaf Node) {
 	t.currentLeaf++
 }
 
-func (t *incrementalTree) addToProofIfNeeded(currentLayer uint, leftChild, rightChild Node) {
+func (t *Tree) addToProofIfNeeded(currentLayer uint, leftChild, rightChild Node) {
 	if len(t.leavesToProve) == 0 {
 		// No proof was requested.
 		return
@@ -120,7 +114,7 @@ func getParent(leftChild, rightChild Node) Node {
 	return res[:]
 }
 
-func (t *incrementalTree) Root() (Node, error) {
+func (t *Tree) Root() (Node, error) {
 	if t.isFull() {
 		return t.pendingLeftSiblings[len(t.pendingLeftSiblings)-1], nil
 	} else {
@@ -128,7 +122,7 @@ func (t *incrementalTree) Root() (Node, error) {
 	}
 }
 
-func (t *incrementalTree) Proof() ([]Node, error) {
+func (t *Tree) Proof() ([]Node, error) {
 	if t.isFull() {
 		return t.proof, nil
 	} else {
@@ -136,7 +130,7 @@ func (t *incrementalTree) Proof() ([]Node, error) {
 	}
 }
 
-func (t *incrementalTree) isFull() bool {
+func (t *Tree) isFull() bool {
 	for i, n := range t.pendingLeftSiblings {
 		if i == len(t.pendingLeftSiblings)-1 {
 			// We're at the end of the list and didn't encounter a pending left sibling - so the tree is full.
@@ -151,7 +145,7 @@ func (t *incrementalTree) isFull() bool {
 	return false
 }
 
-func (t *incrementalTree) isNodeInProvedPath(path uint64, layer uint) bool {
+func (t *Tree) isNodeInProvedPath(path uint64, layer uint) bool {
 	for _, leafToProve := range t.leavesToProve {
 		// When we shift a leaf index right by the layer we get the path towards the leaf from the root to the current
 		// layer.
