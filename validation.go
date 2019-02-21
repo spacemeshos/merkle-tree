@@ -65,7 +65,7 @@ func (v *validator) calcRoot(stopAtLayer uint) Node {
 		} else {
 			leftChild, rightChild = activeNode, sibling
 		}
-		activeNode = getParent(leftChild, rightChild)
+		activeNode = GetSha256Parent(leftChild, rightChild)
 		layer++
 	}
 	return activeNode

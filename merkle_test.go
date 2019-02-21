@@ -19,7 +19,7 @@ import (
 */
 
 func TestNewTree(t *testing.T) {
-	tree := NewTree()
+	tree := NewTree(GetSha256Parent)
 	for i := uint64(0); i < 8; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -30,7 +30,7 @@ func TestNewTree(t *testing.T) {
 }
 
 func TestNewTreeNotPowerOf2(t *testing.T) {
-	tree := NewTree()
+	tree := NewTree(GetSha256Parent)
 	for i := uint64(0); i < 9; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -41,25 +41,47 @@ func TestNewTreeNotPowerOf2(t *testing.T) {
 
 func BenchmarkNewTree(b *testing.B) {
 	var size uint64 = 1 << 28
-	tree := NewTree()
+	tree := NewTree(GetSha256Parent)
 	for i := uint64(0); i < size; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
 	/*
 		goos: darwin
 		goarch: amd64
-		pkg: post-private/merkle
-		BenchmarkNewTree-8   	       1	94453361478 ns/op
+		pkg: github.com/spacemeshos/merkle-tree
+		BenchmarkNewTree-8   	       1	91585669075 ns/op
 		PASS
 	*/
-	// Overhead (no hashing) is 8056887277 ns/op (8 seconds)
-	// 94 seconds to construct a 28 layer tree, 86 seconds without overhead (8.5GB @ 32b leaves).
-	// Extrapolated to 256GB -> ~43 minutes + ~4 minutes overhead.
-	// Reading 256GB from a magnetic disk should take ~30 minutes.
 }
 
+func BenchmarkNewTreeNoHashing(b *testing.B) {
+	var size uint64 = 1 << 28
+	tree := NewTree(func(leftChild, rightChild Node) Node {
+		arr := [32]byte{}
+		return arr[:]
+	})
+	for i := uint64(0); i < size; i++ {
+		tree.AddLeaf(NewNodeFromUint64(i))
+	}
+	/*
+		goos: darwin
+		goarch: amd64
+		pkg: github.com/spacemeshos/merkle-tree
+		BenchmarkNewTreeNoHashing-8   	       1	13525018261 ns/op
+
+		PASS
+	*/
+}
+
+/*
+	28 layer tree takes 91.5 seconds to construct. Overhead (no hashing) is 13.5 seconds. Net: 78 seconds.
+	(8.5GB @ 32b leaves) => x30 256GB => 39 minutes for hashing, 7 minutes overhead.
+
+	Reading 256GB from a magnetic disk should take ~30 minutes.
+*/
+
 func TestNewProvingTree(t *testing.T) {
-	tree := NewProvingTree([]uint64{4})
+	tree := NewProvingTree(GetSha256Parent, []uint64{4})
 	for i := uint64(0); i < 8; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -86,7 +108,7 @@ func TestNewProvingTree(t *testing.T) {
 }
 
 func TestNewProvingTreeMultiProof(t *testing.T) {
-	tree := NewProvingTree([]uint64{1, 4})
+	tree := NewProvingTree(GetSha256Parent, []uint64{1, 4})
 	for i := uint64(0); i < 8; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -114,7 +136,7 @@ func TestNewProvingTreeMultiProof(t *testing.T) {
 }
 
 func TestNewProvingTreeMultiProof2(t *testing.T) {
-	tree := NewProvingTree([]uint64{0, 1, 4})
+	tree := NewProvingTree(GetSha256Parent, []uint64{0, 1, 4})
 	for i := uint64(0); i < 8; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}

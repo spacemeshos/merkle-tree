@@ -29,26 +29,29 @@ type Tree struct {
 	currentLeaf         uint64
 	leavesToProve       []uint64
 	proof               []Node
+	getParent           func(leftChild, rightChild Node) Node
 }
 
 // NewTree creates an empty tree structure that leaves can be added to. When all leaves have been added the root can be
 // queried.
-func NewTree() Tree {
+func NewTree(getParent func(leftChild, rightChild Node) Node) Tree {
 	return Tree{
 		pendingLeftSiblings: make([]Node, 0),
 		currentLeaf:         0,
+		getParent:           getParent,
 	}
 }
 
 // NewProvingTree creates an empty tree structure that leaves can be added to. While the tree is constructed a single
 // proof is generated that proves membership of all leaves included in leavesToProve. When all leaves have been added
 // the root and proof can be queried.
-func NewProvingTree(leavesToProve []uint64) Tree {
+func NewProvingTree(getParent func(leftChild, rightChild Node) Node, leavesToProve []uint64) Tree {
 	return Tree{
 		pendingLeftSiblings: make([]Node, 0),
 		currentLeaf:         0,
 		leavesToProve:       leavesToProve,
 		proof:               make([]Node, 0),
+		getParent:           getParent,
 	}
 }
 
@@ -70,7 +73,7 @@ func (t *Tree) AddLeaf(leaf Node) {
 		t.addToProofIfNeeded(uint(layer), t.pendingLeftSiblings[layer], activeNode)
 		// Since we found the active node's left sibling in pendingLeftSiblings we can calculate the parent, make it the
 		// active node and move up a layer.
-		activeNode = getParent(t.pendingLeftSiblings[layer], activeNode)
+		activeNode = t.getParent(t.pendingLeftSiblings[layer], activeNode)
 		// After using the left sibling we clear it from pendingLeftSiblings.
 		t.pendingLeftSiblings[layer] = nil
 	}
@@ -113,8 +116,8 @@ func getPathsToNodeAndItsChildren(leaf uint64, layer uint) (nodePath, leftChildP
 	return nodePath, nodePath << 1, nodePath<<1 + 1
 }
 
-// getParent calculates the sha256 sum of child nodes to return their parent.
-func getParent(leftChild, rightChild Node) Node {
+// GetSha256Parent calculates the sha256 sum of child nodes to return their parent.
+func GetSha256Parent(leftChild, rightChild Node) Node {
 	res := sha256.Sum256(append(leftChild, rightChild...))
 	return res[:]
 }

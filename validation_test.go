@@ -26,7 +26,7 @@ func TestValidatePartialTreeForRealz(t *testing.T) {
 
 	leafIndices := []uint64{4}
 	leaves := []Node{NewNodeFromUint64(4)}
-	tree := NewProvingTree(leafIndices)
+	tree := NewProvingTree(GetSha256Parent, leafIndices)
 	for i := uint64(0); i < 8; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -55,7 +55,7 @@ func TestValidatePartialTreeMulti(t *testing.T) {
 		NewNodeFromUint64(1),
 		NewNodeFromUint64(4),
 	}
-	tree := NewProvingTree(leafIndices)
+	tree := NewProvingTree(GetSha256Parent, leafIndices)
 	for i := uint64(0); i < 8; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -85,7 +85,7 @@ func TestValidatePartialTreeMulti2(t *testing.T) {
 		NewNodeFromUint64(1),
 		NewNodeFromUint64(4),
 	}
-	tree := NewProvingTree(leafIndices)
+	tree := NewProvingTree(GetSha256Parent, leafIndices)
 	for i := uint64(0); i < 8; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
 	}
