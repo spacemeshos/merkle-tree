@@ -5,6 +5,8 @@ import (
 	"github.com/spacemeshos/sha256-simd"
 )
 
+var ErrorIncompleteTree = errors.New("number of leaves must be a power of 2")
+
 // Tree calculates a merkle tree root. It can optionally calculate a proof, or partial tree, for leaves defined in
 // advance. Leaves are appended to the tree incrementally. It uses O(log(n)) memory to calculate the root and
 // O(k*log(n)) (k being the number of leaves to prove) memory to calculate proofs.
@@ -124,14 +126,14 @@ func GetSha256Parent(leftChild, rightChild Node) Node {
 
 func (t *Tree) Root() (Node, error) {
 	if !t.isFull() {
-		return nil, errors.New("number of leaves must be a power of 2")
+		return nil, ErrorIncompleteTree
 	}
 	return t.pendingLeftSiblings[len(t.pendingLeftSiblings)-1], nil
 }
 
 func (t *Tree) Proof() ([]Node, error) {
 	if !t.isFull() {
-		return nil, errors.New("number of leaves must be a power of 2")
+		return nil, ErrorIncompleteTree
 	}
 	return t.proof, nil
 }
