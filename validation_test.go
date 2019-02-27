@@ -105,3 +105,35 @@ func TestValidatePartialTreeMulti2(t *testing.T) {
 	| =00==01= 02  03 =04=.05. 06  07  |
 	***********************************/
 }
+
+func BenchmarkValidatePartialTree(b *testing.B) {
+	req := require.New(b)
+
+	leafIndices := []uint64{100, 1000, 10000, 100000, 1000000, 2000000, 4000000, 8000000}
+	var leaves [][]byte
+	for _, i := range leafIndices {
+		leaves = append(leaves, NewNodeFromUint64(i))
+	}
+	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	for i := uint64(0); i < 1<<23; i++ {
+		tree.AddLeaf(NewNodeFromUint64(i))
+	}
+	root, err := tree.Root()
+	req.NoError(err)
+	proof, err := tree.Proof()
+	req.NoError(err)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
+		req.NoError(err)
+		req.True(valid, "Proof should be valid, but isn't")
+	}
+
+	/***********************************
+	|                4a                |
+	|        13              6c        |
+	|    9d     .fe.     3d     .6b.   |
+	| =00==01= 02  03 =04=.05. 06  07  |
+	***********************************/
+}
