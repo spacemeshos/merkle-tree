@@ -10,7 +10,7 @@ const MaxUint = ^uint(0)
 
 // ValidatePartialTree uses leafIndices, leaves and proof to calculate the merkle root of the tree and then compares it
 // to expectedRoot.
-func ValidatePartialTree(leafIndices []uint64, leaves, proof []Node, expectedRoot Node) (bool, error) {
+func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte) (bool, error) {
 	v, err := newValidator(leafIndices, leaves, proof)
 	if err != nil {
 		return false, err
@@ -19,7 +19,7 @@ func ValidatePartialTree(leafIndices []uint64, leaves, proof []Node, expectedRoo
 	return bytes.Equal(root, expectedRoot), nil
 }
 
-func newValidator(leafIndices []uint64, leaves, proof []Node) (validator, error) {
+func newValidator(leafIndices []uint64, leaves, proof [][]byte) (validator, error) {
 	if len(leafIndices) != len(leaves) {
 		return validator{}, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves), len(leafIndices))
 	}
@@ -40,13 +40,13 @@ type validator struct {
 	proofNodes *proofIterator
 }
 
-func (v *validator) calcRoot(stopAtLayer uint) Node {
+func (v *validator) calcRoot(stopAtLayer uint) []byte {
 	layer := uint(0)
 	idx, activeNode, err := v.leaves.next()
 	if err != nil {
 		panic(err) // this should never happen since we verify there are more leaves before calling calcRoot
 	}
-	var leftChild, rightChild, sibling Node
+	var leftChild, rightChild, sibling []byte
 	for {
 		if layer == stopAtLayer {
 			break
@@ -71,7 +71,7 @@ func (v *validator) calcRoot(stopAtLayer uint) Node {
 	return activeNode
 }
 
-// leftSibling returns true if the sibling of the node at the current layer on the path to leaf with index idx is on the
+// leftSibling returns true if the sibling of the []byte at the current layer on the path to leaf with index idx is on the
 // left.
 func leftSibling(idx uint64, layer uint) bool {
 	// Is the bit at layer+1 equal 1?
@@ -93,10 +93,10 @@ func (v *validator) shouldCalcSubtree(idx uint64, layer uint) bool {
 var noMoreItems = errors.New("no more items")
 
 type proofIterator struct {
-	nodes []Node
+	nodes [][]byte
 }
 
-func (it *proofIterator) next() (Node, error) {
+func (it *proofIterator) next() ([]byte, error) {
 	if len(it.nodes) == 0 {
 		return nil, noMoreItems
 	}
@@ -107,11 +107,11 @@ func (it *proofIterator) next() (Node, error) {
 
 type leafIterator struct {
 	indices []uint64
-	leaves  []Node
+	leaves  [][]byte
 }
 
 // leafIterator.next() returns the leaf index and value
-func (it *leafIterator) next() (uint64, Node, error) {
+func (it *leafIterator) next() (uint64, []byte, error) {
 	if len(it.indices) == 0 {
 		return 0, nil, noMoreItems
 	}

@@ -9,8 +9,8 @@ func TestValidatePartialTree(t *testing.T) {
 	req := require.New(t)
 
 	leafIndices := []uint64{3}
-	leaves := []Node{NewNodeFromUint64(3)}
-	proof := []Node{
+	leaves := [][]byte{NewNodeFromUint64(3)}
+	proof := [][]byte{
 		NewNodeFromUint64(0),
 		NewNodeFromUint64(0),
 		NewNodeFromUint64(0),
@@ -25,7 +25,7 @@ func TestValidatePartialTreeForRealz(t *testing.T) {
 	req := require.New(t)
 
 	leafIndices := []uint64{4}
-	leaves := []Node{NewNodeFromUint64(4)}
+	leaves := [][]byte{NewNodeFromUint64(4)}
 	tree := NewProvingTree(GetSha256Parent, leafIndices)
 	for i := uint64(0); i < 8; i++ {
 		tree.AddLeaf(NewNodeFromUint64(i))
@@ -51,7 +51,7 @@ func TestValidatePartialTreeMulti(t *testing.T) {
 	req := require.New(t)
 
 	leafIndices := []uint64{1, 4}
-	leaves := []Node{
+	leaves := [][]byte{
 		NewNodeFromUint64(1),
 		NewNodeFromUint64(4),
 	}
@@ -80,7 +80,7 @@ func TestValidatePartialTreeMulti2(t *testing.T) {
 	req := require.New(t)
 
 	leafIndices := []uint64{0, 1, 4}
-	leaves := []Node{
+	leaves := [][]byte{
 		NewNodeFromUint64(0),
 		NewNodeFromUint64(1),
 		NewNodeFromUint64(4),

@@ -1,8 +1,11 @@
 package merkle
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 /*
@@ -49,14 +52,24 @@ func BenchmarkNewTree(b *testing.B) {
 		goos: darwin
 		goarch: amd64
 		pkg: github.com/spacemeshos/merkle-tree
-		BenchmarkNewTree-8   	       1	91585669075 ns/op
+		BenchmarkNewTree-8   	       1	98904481383 ns/op
 		PASS
 	*/
 }
 
+func BenchmarkNewTreeSmall(b *testing.B) {
+	var size uint64 = 1 << 23
+	start := time.Now()
+	tree := NewTree(GetSha256Parent)
+	for i := uint64(0); i < size; i++ {
+		tree.AddLeaf(NewNodeFromUint64(i))
+	}
+	b.Log(time.Since(start))
+}
+
 func BenchmarkNewTreeNoHashing(b *testing.B) {
 	var size uint64 = 1 << 28
-	tree := NewTree(func(leftChild, rightChild Node) Node {
+	tree := NewTree(func(leftChild, rightChild []byte) []byte {
 		arr := [32]byte{}
 		return arr[:]
 	})
@@ -67,15 +80,14 @@ func BenchmarkNewTreeNoHashing(b *testing.B) {
 		goos: darwin
 		goarch: amd64
 		pkg: github.com/spacemeshos/merkle-tree
-		BenchmarkNewTreeNoHashing-8   	       1	13525018261 ns/op
-
+		BenchmarkNewTreeNoHashing-8   	       1	15234160295 ns/op
 		PASS
 	*/
 }
 
 /*
-	28 layer tree takes 91.5 seconds to construct. Overhead (no hashing) is 13.5 seconds. Net: 78 seconds.
-	(8.5GB @ 32b leaves) => x30 256GB => 39 minutes for hashing, 7 minutes overhead.
+	28 layer tree takes 99 seconds to construct. Overhead (no hashing) is 15 seconds. Net: 84 seconds.
+	(8.5GB @ 32b leaves) => x30 256GB => 42 minutes for hashing, 7.5 minutes overhead.
 
 	Reading 256GB from a magnetic disk should take ~30 minutes.
 */
@@ -90,7 +102,7 @@ func TestNewProvingTree(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expectedRoot, root)
 
-	expectedProof := make([]Node, 3)
+	expectedProof := make([][]byte, 3)
 	expectedProof[0], _ = NewNodeFromHex("0500000000000000")
 	expectedProof[1], _ = NewNodeFromHex("6b2e10cb2111114ce942174c38e7ea38864cc364a8fe95c66869c85888d812da")
 	expectedProof[2], _ = NewNodeFromHex("13c04a6157aa640f711d230a4f04bc2b19e75df1127dfc899f025f3aa282912d")
@@ -117,7 +129,7 @@ func TestNewProvingTreeMultiProof(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expectedRoot, root)
 
-	expectedProof := make([]Node, 4)
+	expectedProof := make([][]byte, 4)
 	expectedProof[0], _ = NewNodeFromHex("0000000000000000")
 	expectedProof[1], _ = NewNodeFromHex("fe6d3d3bb5dd778af1128cc7b2b33668d51b9a52dfc8f2342be37ddc06a0072d")
 	expectedProof[2], _ = NewNodeFromHex("0500000000000000")
@@ -145,7 +157,7 @@ func TestNewProvingTreeMultiProof2(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, expectedRoot, root)
 
-	expectedProof := make([]Node, 3)
+	expectedProof := make([][]byte, 3)
 	expectedProof[0], _ = NewNodeFromHex("fe6d3d3bb5dd778af1128cc7b2b33668d51b9a52dfc8f2342be37ddc06a0072d")
 	expectedProof[1], _ = NewNodeFromHex("0500000000000000")
 	expectedProof[2], _ = NewNodeFromHex("6b2e10cb2111114ce942174c38e7ea38864cc364a8fe95c66869c85888d812da")
@@ -160,4 +172,15 @@ func TestNewProvingTreeMultiProof2(t *testing.T) {
 	|    9d     .fe.     3d     .6b.   |
 	| =00==01= 02  03 =04=.05. 06  07  |
 	***********************************/
+}
+
+func NewNodeFromUint64(i uint64) []byte {
+	const bytesInUint64 = 8
+	b := make([]byte, bytesInUint64)
+	binary.LittleEndian.PutUint64(b, i)
+	return b
+}
+
+func NewNodeFromHex(s string) ([]byte, error) {
+	return hex.DecodeString(s)
 }

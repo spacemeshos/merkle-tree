@@ -7,6 +7,22 @@ import (
 
 var ErrorIncompleteTree = errors.New("number of leaves must be a power of 2")
 
+type node struct {
+	value        []byte
+	onProvenPath bool // Is this node an ancestor of a leaf whose membership in the tree is being proven?
+}
+
+type layer struct {
+	parking node // This is where we park a node until its sibling is processed and we can calculate their parent.
+	next    *layer
+}
+
+func (l *layer) ensureNextLayerExists() {
+	if l.next == nil {
+		l.next = &layer{}
+	}
+}
+
 // Tree calculates a merkle tree root. It can optionally calculate a proof, or partial tree, for leaves defined in
 // advance. Leaves are appended to the tree incrementally. It uses O(log(n)) memory to calculate the root and
 // O(k*log(n)) (k being the number of leaves to prove) memory to calculate proofs.
@@ -27,139 +43,97 @@ var ErrorIncompleteTree = errors.New("number of leaves must be a power of 2")
 // standard merkle proof (one sibling per layer of the tree from the leaves to the root, excluding the proved leaf
 // and root).
 type Tree struct {
-	pendingLeftSiblings []Node
-	currentLeaf         uint64
-	leavesToProve       []uint64
-	proof               []Node
-	getParent           func(leftChild, rightChild Node) Node
+	baseLayer     *layer
+	hash          func(lChild, rChild []byte) []byte
+	proof         [][]byte
+	leavesToProve map[uint64]struct{}
+	currentIndex  uint64
 }
 
-// NewTree creates an empty tree structure that leaves can be added to. When all leaves have been added the root can be
-// queried.
-func NewTree(getParent func(leftChild, rightChild Node) Node) Tree {
-	return Tree{
-		pendingLeftSiblings: make([]Node, 0),
-		currentLeaf:         0,
-		getParent:           getParent,
-	}
-}
-
-// NewProvingTree creates an empty tree structure that leaves can be added to. While the tree is constructed a single
-// proof is generated that proves membership of all leaves included in leavesToProve. When all leaves have been added
-// the root and proof can be queried.
-func NewProvingTree(getParent func(leftChild, rightChild Node) Node, leavesToProve []uint64) Tree {
-	return Tree{
-		pendingLeftSiblings: make([]Node, 0),
-		currentLeaf:         0,
-		leavesToProve:       leavesToProve,
-		proof:               make([]Node, 0),
-		getParent:           getParent,
+func (t *Tree) calcParent(lChild, rChild node) node {
+	return node{
+		value:        t.hash(lChild.value, rChild.value),
+		onProvenPath: lChild.onProvenPath || rChild.onProvenPath,
 	}
 }
 
 // AddLeaf incorporates a new leaf to the state of the tree. It updates the state required to eventually determine the
 // root of the tree and also updates the proof, if applicable.
-func (t *Tree) AddLeaf(leaf Node) {
-	activeNode := leaf
-	for layer := 0; true; layer++ {
-		// If pendingLeftSiblings is shorter than the current layer - extend it.
-		if len(t.pendingLeftSiblings) == layer {
-			t.pendingLeftSiblings = append(t.pendingLeftSiblings, nil)
-		}
-		// If we don't have a node waiting in pendingLeftSiblings, add the active node and break the loop.
-		if t.pendingLeftSiblings[layer] == nil {
-			t.pendingLeftSiblings[layer] = activeNode
-			break
-		}
-		// If the active node should be in the proof - store it.
-		t.addToProofIfNeeded(uint(layer), t.pendingLeftSiblings[layer], activeNode)
-		// Since we found the active node's left sibling in pendingLeftSiblings we can calculate the parent, make it the
-		// active node and move up a layer.
-		activeNode = t.getParent(t.pendingLeftSiblings[layer], activeNode)
-		// After using the left sibling we clear it from pendingLeftSiblings.
-		t.pendingLeftSiblings[layer] = nil
-	}
-	t.currentLeaf++
+func (t *Tree) AddLeaf(value []byte) {
+	t.addNode(node{
+		value:        value,
+		onProvenPath: t.isLeafInProof(t.currentIndex),
+	})
+	t.currentIndex++
 }
 
-// addToProofIfNeeded considers the currently-being-processed nodes for inclusion in the proof. It uses the tree's
-// currentLeaf and the received currentLayer to determine if any of the two nodes currently in memory needs to be needs
-// to be appended to the tree's proof slice.
-func (t *Tree) addToProofIfNeeded(currentLayer uint, leftChild, rightChild Node) {
-	if len(t.leavesToProve) == 0 {
-		// No proof was requested.
-		return
-	}
-	// Calculate the paths to the parent and each child
-	parentPath, leftChildPath, rightChildPath := getPathsToNodeAndItsChildren(t.currentLeaf, currentLayer+1)
-	if t.isNodeInProvedPath(parentPath, currentLayer+1) {
-		// We need to be able to calculate the parent.
-		// If the left child isn't in the proved path - we need to include it in the proof.
-		if !t.isNodeInProvedPath(leftChildPath, currentLayer) {
-			t.proof = append(t.proof, leftChild)
+func (t *Tree) Root() ([]byte, error) {
+	l := t.baseLayer
+	for {
+		if l.next == nil {
+			return l.parking.value, nil
 		}
-		// If the right child isn't in the proved path - we need to include it in the proof.
-		if !t.isNodeInProvedPath(rightChildPath, currentLayer) {
-			t.proof = append(t.proof, rightChild)
+		if l.parking.value != nil {
+			return nil, ErrorIncompleteTree
 		}
-		// It's possible that both children are in the proved path and then we include none of them (and calculate them
-		// instead).
+		l = l.next
 	}
 }
 
-// getPathsToNodeAndItsChildren returns the path from the root of the tree to leaf up to the requested layer (node). It
-// also returns the path to each of the node's children.
-// Paths are represented as numbers: each binary digit represents a left (0) or right (1) turn.
-func getPathsToNodeAndItsChildren(leaf uint64, layer uint) (nodePath, leftChildPath, rightChildPath uint64) {
-	// This eliminates the layer most insignificant digits, which represent the path from the requested layer to the
-	// bottom of the tree (the leaves).
-	nodePath = leaf >> layer
-	// We then add a step in the path for the children with 0 for the left child and 1 for the right child.
-	return nodePath, nodePath << 1, nodePath<<1 + 1
+func (t *Tree) isLeafInProof(index uint64) bool {
+	_, found := t.leavesToProve[index]
+	return found
 }
 
-// GetSha256Parent calculates the sha256 sum of child nodes to return their parent.
-func GetSha256Parent(leftChild, rightChild Node) Node {
-	res := sha256.Sum256(append(leftChild, rightChild...))
-	return res[:]
-}
-
-func (t *Tree) Root() (Node, error) {
-	if !t.isFull() {
-		return nil, ErrorIncompleteTree
-	}
-	return t.pendingLeftSiblings[len(t.pendingLeftSiblings)-1], nil
-}
-
-func (t *Tree) Proof() ([]Node, error) {
-	if !t.isFull() {
-		return nil, ErrorIncompleteTree
+func (t *Tree) Proof() ([][]byte, error) {
+	// We call t.Root() to traverse the layers and ensure the tree is full.
+	if _, err := t.Root(); err != nil {
+		return nil, err
 	}
 	return t.proof, nil
 }
 
-func (t *Tree) isFull() bool {
-	for i, n := range t.pendingLeftSiblings {
-		if i == len(t.pendingLeftSiblings)-1 {
-			// We're at the end of the list and didn't encounter a pending left sibling - so the tree is full.
-			return true
-		}
-		if n != nil {
-			// If we found a non-nil sibling before the top of the list it means the leaf count isn't a power of 2.
-			return false
+func (t *Tree) addNode(n node) {
+	var parent, lChild, rChild node
+	l := t.baseLayer
+	for {
+		if l.parking.value == nil {
+			l.parking = n
+			break
+		} else {
+			lChild, rChild = l.parking, n
+			parent = t.calcParent(lChild, rChild)
+			// A given node is required in the proof iff its parent is an ancestor of a leaf whose membership in the
+			// tree is being proven, but the given node isn't.
+			if parent.onProvenPath {
+				if !lChild.onProvenPath {
+					t.proof = append(t.proof, lChild.value)
+				}
+				if !rChild.onProvenPath {
+					t.proof = append(t.proof, rChild.value)
+				}
+			}
+			l.parking.value = nil
+			n = parent
+			l.ensureNextLayerExists()
+			l = l.next
 		}
 	}
-	// Tree is empty.
-	return false
 }
 
-func (t *Tree) isNodeInProvedPath(path uint64, layer uint) bool {
-	for _, leafToProve := range t.leavesToProve {
-		// When we shift a leaf index right by the layer we get the path towards the leaf from the root to the current
-		// layer.
-		if leafToProve>>layer == path {
-			return true
-		}
+func NewTree(hash func(lChild, rChild []byte) []byte) *Tree {
+	return NewProvingTree(hash, nil)
+}
+
+func NewProvingTree(hash func(lChild, rChild []byte) []byte, leavesToProve []uint64) *Tree {
+	t := &Tree{hash: hash, leavesToProve: make(map[uint64]struct{}), baseLayer: &layer{}}
+	for _, l := range leavesToProve {
+		t.leavesToProve[l] = struct{}{}
 	}
-	return false
+	return t
+}
+
+func GetSha256Parent(lChild, rChild []byte) []byte {
+	res := sha256.Sum256(append(lChild, rChild...))
+	return res[:]
 }
