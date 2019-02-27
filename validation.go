@@ -42,53 +42,37 @@ type validator struct {
 }
 
 func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
-	layer := uint(0)
 	idx, activeNode, err := v.leaves.next()
 	if err != nil {
 		return nil, err
 	}
+	p := position{index: idx}
 	var lChild, rChild, sibling []byte
 	for {
-		if layer == stopAtLayer {
+		if p.height == stopAtLayer {
 			break
 		}
-		if v.shouldCalcSubtree(idx, layer) {
-			sibling, err = v.calcRoot(layer)
+		nextLeaf, _, err := v.leaves.peek()
+		if err == nil && p.sibling().isAncestorOf(nextLeaf) {
+			sibling, err = v.calcRoot(p.height)
 			if err != nil {
 				return nil, err
 			}
 		} else {
-			var err error
 			sibling, err = v.proofNodes.next()
 			if err == noMoreItems {
 				break
 			}
 		}
-		if isRightNode(idx, layer) {
+		if p.isRightSibling() {
 			lChild, rChild = sibling, activeNode
 		} else {
 			lChild, rChild = activeNode, sibling
 		}
 		activeNode = v.hash(lChild, rChild)
-		layer++
+		p = p.parent()
 	}
 	return activeNode, nil
-}
-
-func isRightNode(idx uint64, layer uint) bool {
-	return (idx>>layer)%2 == 1
-}
-
-// shouldCalcSubtree returns true if the paths to idx (current leaf) and the nextIdx (next one) diverge at the current
-// layer, so the next sibling should be the root of the subtree to the right.
-func (v *validator) shouldCalcSubtree(idx uint64, layer uint) bool {
-	nextIdx, _, err := v.leaves.peek()
-	if err == noMoreItems {
-		return false
-	}
-	// When eliminating the `layer` least significant bits of the bitwise xor of the current and next leaf index we
-	// expect to get 1 at the divergence point.
-	return (idx^nextIdx)>>layer == 1
 }
 
 var noMoreItems = errors.New("no more items")
@@ -129,4 +113,31 @@ func (it *leafIterator) peek() (uint64, []byte, error) {
 		return 0, nil, noMoreItems
 	}
 	return it.indices[0], it.leaves[0], nil
+}
+
+type position struct {
+	index  uint64
+	height uint
+}
+
+func (p position) sibling() position {
+	return position{
+		index:  p.index ^ 1,
+		height: p.height,
+	}
+}
+
+func (p position) isAncestorOf(leaf uint64) bool {
+	return p.index == (leaf >> p.height)
+}
+
+func (p position) isRightSibling() bool {
+	return p.index%2 == 1
+}
+
+func (p position) parent() position {
+	return position{
+		index:  p.index >> 1,
+		height: p.height + 1,
+	}
 }
