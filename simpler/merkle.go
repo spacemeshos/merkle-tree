@@ -8,12 +8,12 @@ import (
 var ErrorIncompleteTree = errors.New("number of leaves must be a power of 2")
 
 type node struct {
-	value      []byte
-	pathToRoot bool
+	value        []byte
+	onProvenPath bool // Is this node an ancestor of a leaf whose membership in the tree is being proven?
 }
 
 type layer struct {
-	parking node
+	parking node // This is where we park a node until its sibling is processed and we can calculate their parent.
 	next    *layer
 }
 
@@ -25,24 +25,23 @@ func (l *layer) ensureNextLayerExists() {
 
 type Tree struct {
 	baseLayer     *layer
-	hash          func(leftChild, rightChild []byte) []byte
+	hash          func(lChild, rChild []byte) []byte
 	proof         [][]byte
 	leavesToProve map[uint64]struct{}
 	currentIndex  uint64
 }
 
-func (t *Tree) calcParent(left, right node) node {
+func (t *Tree) calcParent(lChild, rChild node) node {
 	return node{
-		value:      t.hash(left.value, right.value),
-		pathToRoot: left.pathToRoot || right.pathToRoot,
+		value:        t.hash(lChild.value, rChild.value),
+		onProvenPath: lChild.onProvenPath || rChild.onProvenPath,
 	}
 }
 
 func (t *Tree) AddLeaf(value []byte) {
-	// TODO replace the is-in-proof mechanism?
 	t.addNode(node{
-		value:      value,
-		pathToRoot: t.isLeafInProof(t.currentIndex),
+		value:        value,
+		onProvenPath: t.isLeafInProof(t.currentIndex),
 	})
 	t.currentIndex++
 }
@@ -66,40 +65,46 @@ func (t *Tree) isLeafInProof(index uint64) bool {
 }
 
 func (t *Tree) Proof() ([][]byte, error) {
-	// TODO ensure that the tree is full
+	// We call t.Root() to traverse the layers and ensure the tree is full.
+	if _, err := t.Root(); err != nil {
+		return nil, err
+	}
 	return t.proof, nil
 }
 
 func (t *Tree) addNode(n node) {
-	var parent node
+	var parent, lChild, rChild node
 	l := t.baseLayer
 	for {
 		if l.parking.value == nil {
 			l.parking = n
 			break
 		} else {
-			parent = t.calcParent(l.parking, n)
-			if parent.pathToRoot {
-				if !l.parking.pathToRoot {
-					t.proof = append(t.proof, l.parking.value)
+			lChild, rChild = l.parking, n
+			parent = t.calcParent(lChild, rChild)
+			// A given node is required in the proof iff its parent is an ancestor of a leaf whose membership in the
+			// tree is being proven, but the given node isn't.
+			if parent.onProvenPath {
+				if !lChild.onProvenPath {
+					t.proof = append(t.proof, lChild.value)
 				}
-				if !n.pathToRoot {
-					t.proof = append(t.proof, n.value)
+				if !rChild.onProvenPath {
+					t.proof = append(t.proof, rChild.value)
 				}
 			}
-			l.ensureNextLayerExists()
 			l.parking.value = nil
 			n = parent
+			l.ensureNextLayerExists()
 			l = l.next
 		}
 	}
 }
 
-func NewTree(hash func(leftChild, rightChild []byte) []byte) *Tree {
+func NewTree(hash func(lChild, rChild []byte) []byte) *Tree {
 	return NewProvingTree(hash, nil)
 }
 
-func NewProvingTree(hash func(leftChild, rightChild []byte) []byte, leavesToProve []uint64) *Tree {
+func NewProvingTree(hash func(lChild, rChild []byte) []byte, leavesToProve []uint64) *Tree {
 	t := &Tree{hash: hash, leavesToProve: make(map[uint64]struct{}), baseLayer: &layer{}}
 	for _, l := range leavesToProve {
 		t.leavesToProve[l] = struct{}{}
@@ -107,7 +112,7 @@ func NewProvingTree(hash func(leftChild, rightChild []byte) []byte, leavesToProv
 	return t
 }
 
-func GetSha256Parent(leftChild, rightChild []byte) []byte {
-	res := sha256.Sum256(append(leftChild, rightChild...))
+func GetSha256Parent(lChild, rChild []byte) []byte {
+	res := sha256.Sum256(append(lChild, rChild...))
 	return res[:]
 }
