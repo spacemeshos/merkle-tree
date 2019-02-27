@@ -16,7 +16,7 @@ func TestValidatePartialTree(t *testing.T) {
 		NewNodeFromUint64(0),
 	}
 	root, _ := NewNodeFromHex("62b525ec807e21a1fd12d06905d85c4b7bc1feacfa57789d95702f6b69ce129f")
-	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root)
+	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")
 }
@@ -35,7 +35,7 @@ func TestValidatePartialTreeForRealz(t *testing.T) {
 	proof, err := tree.Proof() // 05 6b 13
 	req.NoError(err)
 
-	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root)
+	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")
 
@@ -64,7 +64,7 @@ func TestValidatePartialTreeMulti(t *testing.T) {
 	proof, err := tree.Proof() // 05 6b 13
 	req.NoError(err)
 
-	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root)
+	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")
 
@@ -94,7 +94,7 @@ func TestValidatePartialTreeMulti2(t *testing.T) {
 	proof, err := tree.Proof() // 05 6b 13
 	req.NoError(err)
 
-	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root)
+	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")
 

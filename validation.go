@@ -10,49 +10,53 @@ const MaxUint = ^uint(0)
 
 // ValidatePartialTree uses leafIndices, leaves and proof to calculate the merkle root of the tree and then compares it
 // to expectedRoot.
-func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte) (bool, error) {
-	v, err := newValidator(leafIndices, leaves, proof)
+func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
+	hash func(lChild, rChild []byte) []byte) (bool, error) {
+	v, err := newValidator(leafIndices, leaves, proof, hash)
 	if err != nil {
 		return false, err
 	}
-	root := v.calcRoot(MaxUint)
-	return bytes.Equal(root, expectedRoot), nil
+	root, err := v.calcRoot(MaxUint)
+	return bytes.Equal(root, expectedRoot), err
 }
 
-func newValidator(leafIndices []uint64, leaves, proof [][]byte) (validator, error) {
+func newValidator(leafIndices []uint64, leaves, proof [][]byte,
+	hash func(lChild, rChild []byte) []byte) (validator, error) {
 	if len(leafIndices) != len(leaves) {
-		return validator{}, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves), len(leafIndices))
+		return validator{}, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves),
+			len(leafIndices))
 	}
 	if len(leaves) == 0 {
 		return validator{}, fmt.Errorf("at least one leaf is required for validation")
 	}
-	if len(leaves)+len(proof) == 1 {
-		return validator{}, fmt.Errorf("tree of size 1 not supported")
-	}
 	proofNodes := &proofIterator{proof}
 	leafIt := &leafIterator{leafIndices, leaves}
 
-	return validator{leafIt, proofNodes}, nil
+	return validator{leaves: leafIt, proofNodes: proofNodes, hash: hash}, nil
 }
 
 type validator struct {
 	leaves     *leafIterator
 	proofNodes *proofIterator
+	hash       func(lChild, rChild []byte) []byte
 }
 
-func (v *validator) calcRoot(stopAtLayer uint) []byte {
+func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
 	layer := uint(0)
 	idx, activeNode, err := v.leaves.next()
 	if err != nil {
-		panic(err) // this should never happen since we verify there are more leaves before calling calcRoot
+		return nil, err
 	}
-	var leftChild, rightChild, sibling []byte
+	var lChild, rChild, sibling []byte
 	for {
 		if layer == stopAtLayer {
 			break
 		}
 		if v.shouldCalcSubtree(idx, layer) {
-			sibling = v.calcRoot(layer)
+			sibling, err = v.calcRoot(layer)
+			if err != nil {
+				return nil, err
+			}
 		} else {
 			var err error
 			sibling, err = v.proofNodes.next()
@@ -60,32 +64,29 @@ func (v *validator) calcRoot(stopAtLayer uint) []byte {
 				break
 			}
 		}
-		if leftSibling(idx, layer) {
-			leftChild, rightChild = sibling, activeNode
+		if isRightNode(idx, layer) {
+			lChild, rChild = sibling, activeNode
 		} else {
-			leftChild, rightChild = activeNode, sibling
+			lChild, rChild = activeNode, sibling
 		}
-		activeNode = GetSha256Parent(leftChild, rightChild)
+		activeNode = v.hash(lChild, rChild)
 		layer++
 	}
-	return activeNode
+	return activeNode, nil
 }
 
-// leftSibling returns true if the sibling of the []byte at the current layer on the path to leaf with index idx is on the
-// left.
-func leftSibling(idx uint64, layer uint) bool {
-	// Is the bit at layer+1 equal 1?
+func isRightNode(idx uint64, layer uint) bool {
 	return (idx>>layer)%2 == 1
 }
 
 // shouldCalcSubtree returns true if the paths to idx (current leaf) and the nextIdx (next one) diverge at the current
 // layer, so the next sibling should be the root of the subtree to the right.
 func (v *validator) shouldCalcSubtree(idx uint64, layer uint) bool {
-	nextIdx, err := v.leaves.peek()
+	nextIdx, _, err := v.leaves.peek()
 	if err == noMoreItems {
 		return false
 	}
-	// When eliminating the `layer` most insignificant bits of the bitwise xor of the current and next leaf index we
+	// When eliminating the `layer` least significant bits of the bitwise xor of the current and next leaf index we
 	// expect to get 1 at the divergence point.
 	return (idx^nextIdx)>>layer == 1
 }
@@ -123,10 +124,9 @@ func (it *leafIterator) next() (uint64, []byte, error) {
 }
 
 // leafIterator.peek() returns the leaf index but doesn't move the iterator to this leaf as next would do
-func (it *leafIterator) peek() (uint64, error) {
+func (it *leafIterator) peek() (uint64, []byte, error) {
 	if len(it.indices) == 0 {
-		return 0, noMoreItems
+		return 0, nil, noMoreItems
 	}
-	idx := it.indices[0]
-	return idx, nil
+	return it.indices[0], it.leaves[0], nil
 }
