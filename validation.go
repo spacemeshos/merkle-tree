@@ -42,19 +42,18 @@ type validator struct {
 }
 
 func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
-	idx, activeNode, err := v.leaves.next()
+	activePos, activeNode, err := v.leaves.next()
 	if err != nil {
 		return nil, err
 	}
-	p := position{index: idx}
 	var lChild, rChild, sibling []byte
 	for {
-		if p.height == stopAtLayer {
+		if activePos.height == stopAtLayer {
 			break
 		}
-		nextLeaf, _, err := v.leaves.peek()
-		if err == nil && p.sibling().isAncestorOf(nextLeaf) {
-			sibling, err = v.calcRoot(p.height)
+		nextLeafPos, _, err := v.leaves.peek()
+		if err == nil && activePos.sibling().isAncestorOf(nextLeafPos) {
+			sibling, err = v.calcRoot(activePos.height)
 			if err != nil {
 				return nil, err
 			}
@@ -64,13 +63,13 @@ func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
 				break
 			}
 		}
-		if p.isRightSibling() {
+		if activePos.isRightSibling() {
 			lChild, rChild = sibling, activeNode
 		} else {
 			lChild, rChild = activeNode, sibling
 		}
 		activeNode = v.hash(lChild, rChild)
-		p = p.parent()
+		activePos = activePos.parent()
 	}
 	return activeNode, nil
 }
@@ -96,23 +95,23 @@ type leafIterator struct {
 }
 
 // leafIterator.next() returns the leaf index and value
-func (it *leafIterator) next() (uint64, []byte, error) {
+func (it *leafIterator) next() (position, []byte, error) {
 	if len(it.indices) == 0 {
-		return 0, nil, noMoreItems
+		return position{}, nil, noMoreItems
 	}
 	idx := it.indices[0]
 	leaf := it.leaves[0]
 	it.indices = it.indices[1:]
 	it.leaves = it.leaves[1:]
-	return idx, leaf, nil
+	return position{index: idx}, leaf, nil
 }
 
 // leafIterator.peek() returns the leaf index but doesn't move the iterator to this leaf as next would do
-func (it *leafIterator) peek() (uint64, []byte, error) {
+func (it *leafIterator) peek() (position, []byte, error) {
 	if len(it.indices) == 0 {
-		return 0, nil, noMoreItems
+		return position{}, nil, noMoreItems
 	}
-	return it.indices[0], it.leaves[0], nil
+	return position{index: it.indices[0]}, it.leaves[0], nil
 }
 
 type position struct {
@@ -127,8 +126,11 @@ func (p position) sibling() position {
 	}
 }
 
-func (p position) isAncestorOf(leaf uint64) bool {
-	return p.index == (leaf >> p.height)
+func (p position) isAncestorOf(other position) bool {
+	if p.height < other.height {
+		return false
+	}
+	return p.index == (other.index >> (p.height - other.height))
 }
 
 func (p position) isRightSibling() bool {
