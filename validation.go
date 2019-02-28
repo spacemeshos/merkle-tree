@@ -51,6 +51,8 @@ func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
 		if activePos.height == stopAtLayer {
 			break
 		}
+		// The activeNode's sibling should be calculated iff it's an ancestor of the next proven leaf. Otherwise, the
+		// sibling is the next node in the proof.
 		nextLeafPos, _, err := v.leaves.peek()
 		if err == nil && activePos.sibling().isAncestorOf(nextLeafPos) {
 			sibling, err = v.calcRoot(activePos.height)
