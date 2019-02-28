@@ -3,6 +3,7 @@ package merkle
 import (
 	"errors"
 	"github.com/spacemeshos/sha256-simd"
+	"io"
 )
 
 var ErrorIncompleteTree = errors.New("number of leaves must be a power of 2")
@@ -13,14 +14,20 @@ type node struct {
 }
 
 type layer struct {
+	height  uint
 	parking node // This is where we park a node until its sibling is processed and we can calculate their parent.
 	next    *layer
+	cache   io.Writer
 }
 
-func (l *layer) ensureNextLayerExists() {
+func (l *layer) ensureNextLayerExists(cache map[uint]io.Writer) {
 	if l.next == nil {
-		l.next = &layer{}
+		l.next = newLayer(l.height+1, cache[(l.height + 1)])
 	}
+}
+
+func newLayer(height uint, cache io.Writer) *layer {
+	return &layer{height: height, cache: cache}
 }
 
 // Tree calculates a merkle tree root. It can optionally calculate a proof, or partial tree, for leaves defined in
@@ -48,6 +55,7 @@ type Tree struct {
 	proof         [][]byte
 	leavesToProve map[uint64]struct{}
 	currentIndex  uint64
+	cache         map[uint]io.Writer
 }
 
 func (t *Tree) calcParent(lChild, rChild node) node {
@@ -59,12 +67,13 @@ func (t *Tree) calcParent(lChild, rChild node) node {
 
 // AddLeaf incorporates a new leaf to the state of the tree. It updates the state required to eventually determine the
 // root of the tree and also updates the proof, if applicable.
-func (t *Tree) AddLeaf(value []byte) {
-	t.addNode(node{
+func (t *Tree) AddLeaf(value []byte) error {
+	err := t.addNode(node{
 		value:        value,
 		onProvenPath: t.isLeafInProof(t.currentIndex),
 	})
 	t.currentIndex++
+	return err
 }
 
 func (t *Tree) Root() ([]byte, error) {
@@ -93,10 +102,17 @@ func (t *Tree) Proof() ([][]byte, error) {
 	return t.proof, nil
 }
 
-func (t *Tree) addNode(n node) {
+func (t *Tree) addNode(n node) error {
 	var parent, lChild, rChild node
 	l := t.baseLayer
+	var lastCachingError error
 	for {
+		if l.cache != nil {
+			_, err := l.cache.Write(n.value)
+			if err != nil {
+				lastCachingError = errors.New("error while caching: " + err.Error())
+			}
+		}
 		if l.parking.value == nil {
 			l.parking = n
 			break
@@ -115,21 +131,29 @@ func (t *Tree) addNode(n node) {
 			}
 			l.parking.value = nil
 			n = parent
-			l.ensureNextLayerExists()
+			l.ensureNextLayerExists(t.cache)
 			l = l.next
 		}
 	}
+	return lastCachingError
 }
 
 func NewTree(hash func(lChild, rChild []byte) []byte) *Tree {
-	return NewProvingTree(hash, nil)
+	return NewCachingTree(hash, make(map[uint]io.Writer))
 }
 
 func NewProvingTree(hash func(lChild, rChild []byte) []byte, leavesToProve []uint64) *Tree {
-	t := &Tree{hash: hash, leavesToProve: make(map[uint64]struct{}), baseLayer: &layer{}}
+	t := NewTree(hash)
+	t.leavesToProve = make(map[uint64]struct{})
 	for _, l := range leavesToProve {
 		t.leavesToProve[l] = struct{}{}
 	}
+	return t
+}
+
+func NewCachingTree(hash func(lChild, rChild []byte) []byte, cache map[uint]io.Writer) *Tree {
+	t := &Tree{hash: hash, baseLayer: newLayer(0, cache[0])}
+	t.cache = cache
 	return t
 }
 
