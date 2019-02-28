@@ -28,7 +28,8 @@ func TestValidatePartialTreeForRealz(t *testing.T) {
 	leaves := [][]byte{NewNodeFromUint64(4)}
 	tree := NewProvingTree(GetSha256Parent, leafIndices)
 	for i := uint64(0); i < 8; i++ {
-		tree.AddLeaf(NewNodeFromUint64(i))
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		req.NoError(err)
 	}
 	root, err := tree.Root() // 4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0
 	req.NoError(err)
@@ -57,7 +58,8 @@ func TestValidatePartialTreeMulti(t *testing.T) {
 	}
 	tree := NewProvingTree(GetSha256Parent, leafIndices)
 	for i := uint64(0); i < 8; i++ {
-		tree.AddLeaf(NewNodeFromUint64(i))
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		req.NoError(err)
 	}
 	root, err := tree.Root() // 4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0
 	req.NoError(err)
@@ -87,7 +89,8 @@ func TestValidatePartialTreeMulti2(t *testing.T) {
 	}
 	tree := NewProvingTree(GetSha256Parent, leafIndices)
 	for i := uint64(0); i < 8; i++ {
-		tree.AddLeaf(NewNodeFromUint64(i))
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		req.NoError(err)
 	}
 	root, err := tree.Root() // 4a2ca61d1fd537170785a8575d424634713c82e7392e67795a807653e498cfd0
 	req.NoError(err)
@@ -116,7 +119,8 @@ func BenchmarkValidatePartialTree(b *testing.B) {
 	}
 	tree := NewProvingTree(GetSha256Parent, leafIndices)
 	for i := uint64(0); i < 1<<23; i++ {
-		tree.AddLeaf(NewNodeFromUint64(i))
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		req.NoError(err)
 	}
 	root, err := tree.Root()
 	req.NoError(err)
