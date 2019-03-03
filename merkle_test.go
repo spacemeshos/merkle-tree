@@ -57,7 +57,7 @@ func BenchmarkNewTree(b *testing.B) {
 		goos: darwin
 		goarch: amd64
 		pkg: github.com/spacemeshos/merkle-tree
-		BenchmarkNewTree-8   	       1	98904481383 ns/op
+		BenchmarkNewTree-8   	       1	93337406540 ns/op
 		PASS
 	*/
 }
@@ -71,7 +71,7 @@ func BenchmarkNewTreeSmall(b *testing.B) {
 	}
 	b.Log(time.Since(start))
 	/*
-	    merkle_test.go:68: 2.966276341s
+	    merkle_test.go:72: 2.920571503s
 	 */
 }
 
@@ -88,14 +88,14 @@ func BenchmarkNewTreeNoHashing(b *testing.B) {
 		goos: darwin
 		goarch: amd64
 		pkg: github.com/spacemeshos/merkle-tree
-		BenchmarkNewTreeNoHashing-8   	       1	15234160295 ns/op
+		BenchmarkNewTreeNoHashing-8   	       1	14668889972 ns/op
 		PASS
 	*/
 }
 
 /*
-	28 layer tree takes 99 seconds to construct. Overhead (no hashing) is 15 seconds. Net: 84 seconds.
-	(8.5GB @ 32b leaves) => x30 256GB => 42 minutes for hashing, 7.5 minutes overhead.
+	28 layer tree takes 93 seconds to construct. Overhead (no hashing) is 14.5 seconds. Net: 78.5 seconds.
+	(8.5GB @ 32b leaves) => x30 256GB => 39 minutes for hashing, 7.5 minutes overhead.
 
 	Reading 256GB from a magnetic disk should take ~30 minutes.
 */

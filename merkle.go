@@ -30,6 +30,23 @@ func newLayer(height uint, cache io.Writer) *layer {
 	return &layer{height: height, cache: cache}
 }
 
+type sparseBoolStack struct {
+	sortedTrueIndices []uint64
+	currentIndex      uint64
+}
+
+func (s *sparseBoolStack) pop() bool {
+	if len(s.sortedTrueIndices) == 0 {
+		return false
+	}
+	ret := s.currentIndex == s.sortedTrueIndices[0]
+	if ret {
+		s.sortedTrueIndices = s.sortedTrueIndices[1:]
+	}
+	s.currentIndex++
+	return ret
+}
+
 // Tree calculates a merkle tree root. It can optionally calculate a proof, or partial tree, for leaves defined in
 // advance. Leaves are appended to the tree incrementally. It uses O(log(n)) memory to calculate the root and
 // O(k*log(n)) (k being the number of leaves to prove) memory to calculate proofs.
@@ -53,8 +70,7 @@ type Tree struct {
 	baseLayer     *layer
 	hash          func(lChild, rChild []byte) []byte
 	proof         [][]byte
-	leavesToProve map[uint64]struct{}
-	currentIndex  uint64
+	leavesToProve *sparseBoolStack
 	cache         map[uint]io.Writer
 }
 
@@ -70,9 +86,8 @@ func (t *Tree) calcParent(lChild, rChild node) node {
 func (t *Tree) AddLeaf(value []byte) error {
 	err := t.addNode(node{
 		value:        value,
-		onProvenPath: t.isLeafInProof(t.currentIndex),
+		onProvenPath: t.leavesToProve.pop(),
 	})
-	t.currentIndex++
 	return err
 }
 
@@ -87,11 +102,6 @@ func (t *Tree) Root() ([]byte, error) {
 		}
 		l = l.next
 	}
-}
-
-func (t *Tree) isLeafInProof(index uint64) bool {
-	_, found := t.leavesToProve[index]
-	return found
 }
 
 func (t *Tree) Proof() ([][]byte, error) {
@@ -142,17 +152,18 @@ func NewTree(hash func(lChild, rChild []byte) []byte) *Tree {
 	return NewCachingTree(hash, make(map[uint]io.Writer))
 }
 
-func NewProvingTree(hash func(lChild, rChild []byte) []byte, leavesToProve []uint64) *Tree {
+func NewProvingTree(hash func(lChild, rChild []byte) []byte, sortedLeavesToProve []uint64) *Tree {
 	t := NewTree(hash)
-	t.leavesToProve = make(map[uint64]struct{})
-	for _, l := range leavesToProve {
-		t.leavesToProve[l] = struct{}{}
-	}
+	t.leavesToProve.sortedTrueIndices = sortedLeavesToProve
 	return t
 }
 
 func NewCachingTree(hash func(lChild, rChild []byte) []byte, cache map[uint]io.Writer) *Tree {
-	t := &Tree{hash: hash, baseLayer: newLayer(0, cache[0])}
+	t := &Tree{
+		hash: hash,
+		baseLayer: newLayer(0, cache[0]),
+		leavesToProve: &sparseBoolStack{},
+	}
 	t.cache = cache
 	return t
 }
