@@ -132,8 +132,8 @@ func (t *Tree) addLeaf(n node) error {
 			lChild, rChild = l.parking, n
 			parent = t.calcParent(lChild, rChild)
 
-			// A given node is required in the proof if its parent is an ancestor of a leaf whose membership in the
-			// tree is being proven, but the given node isn't.
+			// A given node is required in the proof if and only if its parent is an ancestor
+			// of a leaf whose membership in the tree is being proven, but the given node isn't.
 			if parent.onProvenPath {
 				if !lChild.onProvenPath {
 					t.proof = append(t.proof, lChild.value)
