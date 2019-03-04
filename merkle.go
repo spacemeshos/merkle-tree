@@ -8,11 +8,13 @@ import (
 
 var ErrorIncompleteTree = errors.New("number of leaves must be a power of 2")
 
+// node is a node in the merkle tree.
 type node struct {
 	value        []byte
-	onProvenPath bool // Is this node an ancestor of a leaf whose membership in the tree is being proven?
+	onProvenPath bool // Whether this node is an ancestor of a leaf whose membership in the tree is being proven.
 }
 
+// layer is a layer in the merkle tree.
 type layer struct {
 	height  uint
 	parking node // This is where we park a node until its sibling is processed and we can calculate their parent.
@@ -20,9 +22,10 @@ type layer struct {
 	cache   io.Writer
 }
 
+// ensureNextLayerExists creates the next layer if it doesn't exist.
 func (l *layer) ensureNextLayerExists(cache map[uint]io.Writer) {
 	if l.next == nil {
-		l.next = newLayer(l.height+1, cache[(l.height + 1)])
+		l.next = newLayer(l.height+1, cache[(l.height+1)])
 	}
 }
 
@@ -52,45 +55,66 @@ func (s *sparseBoolStack) pop() bool {
 // O(k*log(n)) (k being the number of leaves to prove) memory to calculate proofs.
 //
 // Tree is NOT thread safe.
-//
-// It has the following methods:
-//
-// 	AddLeaf(leaf Node)
-// AddLeaf updates the state of the tree with another leaf.
-//
-//	Root() (Node, error)
-// Root returns the root of the tree or an error if the number of leaves added is not a power of 2.
-//
-//	Proof() ([]Node, error)
-// Proof returns a partial tree proving the membership of leaves that were passed in leavesToProve when the tree was
-// initialized or an error if the number of leaves added is not a power of 2. For a single proved leaf this is a
-// standard merkle proof (one sibling per layer of the tree from the leaves to the root, excluding the proved leaf
-// and root).
 type Tree struct {
-	baseLayer     *layer
+	baseLayer     *layer // The leaf layer (0)
 	hash          func(lChild, rChild []byte) []byte
 	proof         [][]byte
 	leavesToProve *sparseBoolStack
 	cache         map[uint]io.Writer
 }
 
-func (t *Tree) calcParent(lChild, rChild node) node {
-	return node{
-		value:        t.hash(lChild.value, rChild.value),
-		onProvenPath: lChild.onProvenPath || rChild.onProvenPath,
-	}
-}
-
 // AddLeaf incorporates a new leaf to the state of the tree. It updates the state required to eventually determine the
 // root of the tree and also updates the proof, if applicable.
 func (t *Tree) AddLeaf(value []byte) error {
-	err := t.addNode(node{
+	n := node{
 		value:        value,
 		onProvenPath: t.leavesToProve.pop(),
-	})
-	return err
+	}
+	l := t.baseLayer
+	var parent, lChild, rChild node
+	var lastCachingError error
+
+	// Loop through the layers, starting from the base layer.
+	for {
+		// Writing the node to its layer cache, if applicable.
+		if l.cache != nil {
+			_, err := l.cache.Write(n.value)
+			if err != nil {
+				lastCachingError = errors.New("error while caching: " + err.Error())
+			}
+		}
+
+		// If no node is pending, then this node is a left sibling,
+		// pending for its right sibling before its parent can be calculated.
+		if l.parking.value == nil {
+			l.parking = n
+			break
+		} else {
+			// This node is a right sibling.
+			lChild, rChild = l.parking, n
+			parent = t.calcParent(lChild, rChild)
+
+			// A given node is required in the proof if and only if its parent is an ancestor
+			// of a leaf whose membership in the tree is being proven, but the given node isn't.
+			if parent.onProvenPath {
+				if !lChild.onProvenPath {
+					t.proof = append(t.proof, lChild.value)
+				}
+				if !rChild.onProvenPath {
+					t.proof = append(t.proof, rChild.value)
+				}
+			}
+
+			l.parking.value = nil
+			n = parent
+			l.ensureNextLayerExists(t.cache)
+			l = l.next
+		}
+	}
+	return lastCachingError
 }
 
+// Root returns the root of the tree or an error if the number of leaves added is not a power of 2.
 func (t *Tree) Root() ([]byte, error) {
 	l := t.baseLayer
 	for {
@@ -104,6 +128,10 @@ func (t *Tree) Root() ([]byte, error) {
 	}
 }
 
+// Proof returns a partial tree proving the membership of leaves that were passed in leavesToProve when the tree was
+// initialized or an error if the number of leaves added is not a power of 2. For a single proved leaf this is a
+// standard merkle proof (one sibling per layer of the tree from the leaves to the root, excluding the proved leaf
+// and root).
 func (t *Tree) Proof() ([][]byte, error) {
 	// We call t.Root() to traverse the layers and ensure the tree is full.
 	if _, err := t.Root(); err != nil {
@@ -112,40 +140,12 @@ func (t *Tree) Proof() ([][]byte, error) {
 	return t.proof, nil
 }
 
-func (t *Tree) addNode(n node) error {
-	var parent, lChild, rChild node
-	l := t.baseLayer
-	var lastCachingError error
-	for {
-		if l.cache != nil {
-			_, err := l.cache.Write(n.value)
-			if err != nil {
-				lastCachingError = errors.New("error while caching: " + err.Error())
-			}
-		}
-		if l.parking.value == nil {
-			l.parking = n
-			break
-		} else {
-			lChild, rChild = l.parking, n
-			parent = t.calcParent(lChild, rChild)
-			// A given node is required in the proof iff its parent is an ancestor of a leaf whose membership in the
-			// tree is being proven, but the given node isn't.
-			if parent.onProvenPath {
-				if !lChild.onProvenPath {
-					t.proof = append(t.proof, lChild.value)
-				}
-				if !rChild.onProvenPath {
-					t.proof = append(t.proof, rChild.value)
-				}
-			}
-			l.parking.value = nil
-			n = parent
-			l.ensureNextLayerExists(t.cache)
-			l = l.next
-		}
+// calcParent returns the parent node of two child nodes.
+func (t *Tree) calcParent(lChild, rChild node) node {
+	return node{
+		value:        t.hash(lChild.value, rChild.value),
+		onProvenPath: lChild.onProvenPath || rChild.onProvenPath,
 	}
-	return lastCachingError
 }
 
 func NewTree(hash func(lChild, rChild []byte) []byte) *Tree {
@@ -160,8 +160,8 @@ func NewProvingTree(hash func(lChild, rChild []byte) []byte, sortedLeavesToProve
 
 func NewCachingTree(hash func(lChild, rChild []byte) []byte, cache map[uint]io.Writer) *Tree {
 	t := &Tree{
-		hash: hash,
-		baseLayer: newLayer(0, cache[0]),
+		hash:          hash,
+		baseLayer:     newLayer(0, cache[0]),
 		leavesToProve: &sparseBoolStack{},
 	}
 	t.cache = cache
