@@ -66,50 +66,12 @@ type Tree struct {
 // AddLeaf incorporates a new leaf to the state of the tree. It updates the state required to eventually determine the
 // root of the tree and also updates the proof, if applicable.
 func (t *Tree) AddLeaf(value []byte) error {
-	err := t.addLeaf(node{
+	n := node{
 		value:        value,
 		onProvenPath: t.leavesToProve.pop(),
-	})
-	return err
-}
-
-// Root returns the root of the tree or an error if the number of leaves added is not a power of 2.
-func (t *Tree) Root() ([]byte, error) {
+	}
 	l := t.baseLayer
-	for {
-		if l.next == nil {
-			return l.parking.value, nil
-		}
-		if l.parking.value != nil {
-			return nil, ErrorIncompleteTree
-		}
-		l = l.next
-	}
-}
-
-// Proof returns a partial tree proving the membership of leaves that were passed in leavesToProve when the tree was
-// initialized or an error if the number of leaves added is not a power of 2. For a single proved leaf this is a
-// standard merkle proof (one sibling per layer of the tree from the leaves to the root, excluding the proved leaf
-// and root).
-func (t *Tree) Proof() ([][]byte, error) {
-	// We call t.Root() to traverse the layers and ensure the tree is full.
-	if _, err := t.Root(); err != nil {
-		return nil, err
-	}
-	return t.proof, nil
-}
-
-// calcParent returns the parent node of two child nodes.
-func (t *Tree) calcParent(lChild, rChild node) node {
-	return node{
-		value:        t.hash(lChild.value, rChild.value),
-		onProvenPath: lChild.onProvenPath || rChild.onProvenPath,
-	}
-}
-
-func (t *Tree) addLeaf(n node) error {
 	var parent, lChild, rChild node
-	l := t.baseLayer
 	var lastCachingError error
 
 	// Loop through the layers, starting from the base layer.
@@ -150,6 +112,40 @@ func (t *Tree) addLeaf(n node) error {
 		}
 	}
 	return lastCachingError
+}
+
+// Root returns the root of the tree or an error if the number of leaves added is not a power of 2.
+func (t *Tree) Root() ([]byte, error) {
+	l := t.baseLayer
+	for {
+		if l.next == nil {
+			return l.parking.value, nil
+		}
+		if l.parking.value != nil {
+			return nil, ErrorIncompleteTree
+		}
+		l = l.next
+	}
+}
+
+// Proof returns a partial tree proving the membership of leaves that were passed in leavesToProve when the tree was
+// initialized or an error if the number of leaves added is not a power of 2. For a single proved leaf this is a
+// standard merkle proof (one sibling per layer of the tree from the leaves to the root, excluding the proved leaf
+// and root).
+func (t *Tree) Proof() ([][]byte, error) {
+	// We call t.Root() to traverse the layers and ensure the tree is full.
+	if _, err := t.Root(); err != nil {
+		return nil, err
+	}
+	return t.proof, nil
+}
+
+// calcParent returns the parent node of two child nodes.
+func (t *Tree) calcParent(lChild, rChild node) node {
+	return node{
+		value:        t.hash(lChild.value, rChild.value),
+		onProvenPath: lChild.onProvenPath || rChild.onProvenPath,
+	}
 }
 
 func NewTree(hash func(lChild, rChild []byte) []byte) *Tree {
