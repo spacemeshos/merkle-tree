@@ -121,6 +121,10 @@ type position struct {
 	height uint
 }
 
+func (p position) String() string {
+	return fmt.Sprintf("<h: %d i: %b>", p.height, p.index)
+}
+
 func (p position) sibling() position {
 	return position{
 		index:  p.index ^ 1,
@@ -143,5 +147,12 @@ func (p position) parent() position {
 	return position{
 		index:  p.index >> 1,
 		height: p.height + 1,
+	}
+}
+
+func (p position) leftChild() position {
+	return position{
+		index:  p.index << 1,
+		height: p.height - 1,
 	}
 }

@@ -148,24 +148,42 @@ func (t *Tree) calcParent(lChild, rChild node) node {
 	}
 }
 
+type TreeBuilder struct {
+	t Tree
+}
+
+func NewTreeBuilder(hash func(lChild []byte, rChild []byte) []byte) TreeBuilder {
+	return TreeBuilder{t: Tree{hash: hash, leavesToProve: &sparseBoolStack{}}}
+}
+
+func (tb TreeBuilder) Build() *Tree {
+	if tb.t.cache == nil {
+		tb.t.cache = make(map[uint]io.Writer)
+	}
+	tb.t.baseLayer = newLayer(0, tb.t.cache[0])
+	return &tb.t
+}
+
+func (tb TreeBuilder) WithSortedLeavesToProve(sortedLeavesToProve []uint64) TreeBuilder {
+	tb.t.leavesToProve.sortedTrueIndices = sortedLeavesToProve
+	return tb
+}
+
+func (tb TreeBuilder) WithCache(cache map[uint]io.Writer) TreeBuilder {
+	tb.t.cache = cache
+	return tb
+}
+
 func NewTree(hash func(lChild, rChild []byte) []byte) *Tree {
-	return NewCachingTree(hash, make(map[uint]io.Writer))
+	return NewTreeBuilder(hash).Build()
 }
 
 func NewProvingTree(hash func(lChild, rChild []byte) []byte, sortedLeavesToProve []uint64) *Tree {
-	t := NewTree(hash)
-	t.leavesToProve.sortedTrueIndices = sortedLeavesToProve
-	return t
+	return NewTreeBuilder(hash).WithSortedLeavesToProve(sortedLeavesToProve).Build()
 }
 
 func NewCachingTree(hash func(lChild, rChild []byte) []byte, cache map[uint]io.Writer) *Tree {
-	t := &Tree{
-		hash:          hash,
-		baseLayer:     newLayer(0, cache[0]),
-		leavesToProve: &sparseBoolStack{},
-	}
-	t.cache = cache
-	return t
+	return NewTreeBuilder(hash).WithCache(cache).Build()
 }
 
 func GetSha256Parent(lChild, rChild []byte) []byte {
