@@ -27,17 +27,16 @@ func GenerateProof(
 
 	provenLeafIndexIt := &positionsIterator{s: provenLeafIndices}
 	var currentPos, subtreeStart position
-	var err error
 	var width uint64
-	value := make([]byte, NodeSize)
+	var currentVal []byte
 	skipPositions := &positionsStack{}
 	rootHeight := rootHeightFromWidth(readers[0].Width())
 
 	var proof, additionalProof [][]byte
-	for { // Process proven leaves:
+	for ; ; currentPos = currentPos.parent() { // Process proven leaves:
 
 		// Get the leaf whose subtree we'll traverse.
-		currentPos, err = provenLeafIndexIt.peek()
+		nextProvenLeaf, err := provenLeafIndexIt.peek()
 		if err == noMoreItems {
 			// If there are no more leaves to prove - we're done.
 			break
@@ -47,7 +46,7 @@ func GenerateProof(
 		reader := readers[0]
 
 		// Get indices for the bottom left corner of the subtree and its root, as well as the bottom layer's width.
-		subtreeStart, currentPos, width = subtreeDefinition(currentPos, readers)
+		subtreeStart, currentPos, width = subtreeDefinition(nextProvenLeaf, readers)
 
 		// Prepare reader to read subtree leaves.
 		err = reader.Seek(subtreeStart.index)
@@ -65,13 +64,12 @@ func GenerateProof(
 			return nil, errors.New("while traversing subtree: " + err.Error())
 		}
 
-		for currentPos.height < rootHeight { // Traverse cache:
+		for ; currentPos.height < rootHeight; currentPos = currentPos.parent() { // Traverse cache:
 
 			// Check if we're revisiting a node. If we've descended into a subtree and just got back, we shouldn't add
 			// the sibling to the proof and instead move on to the parent.
 			found = skipPositions.PopIfEqual(currentPos)
 			if found {
-				currentPos = currentPos.parent()
 				continue
 			}
 
@@ -102,11 +100,13 @@ func GenerateProof(
 
 				// Traverse the subtree.
 				width = 1 << (currentPos.height - subtreeStart.height)
-				_, root, err := traverseSubtree(reader, width, hash, nil)
+				_, currentVal, err = traverseSubtree(reader, width, hash, nil)
+				if err != nil {
+					return nil, errors.New("while traversing subtree for root: " + err.Error())
+				}
 
 				// Append the root of the subtree to the proof and move to its parent.
-				proof = append(proof, root)
-				currentPos = currentPos.parent()
+				proof = append(proof, currentVal)
 				continue
 			}
 
@@ -115,14 +115,11 @@ func GenerateProof(
 			if err != nil {
 				return nil, errors.New("while seeking in cache: " + err.Error() + currentPos.sibling().String())
 			}
-			value, err = reader.ReadNext()
+			currentVal, err = reader.ReadNext()
 			if err != nil {
 				return nil, errors.New("while reading from cache: " + err.Error())
 			}
-			proof = append(proof, value)
-
-			// Move up a layer.
-			currentPos = currentPos.parent()
+			proof = append(proof, currentVal)
 		}
 	}
 
