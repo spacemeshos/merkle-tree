@@ -31,7 +31,7 @@ func TestGenerateProof(t *testing.T) {
 
 	tree := NewTreeBuilder(GetSha256Parent).
 		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
-		WithSortedLeavesToProve(leavesToProve).
+		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
@@ -70,7 +70,7 @@ func BenchmarkGenerateProof(b *testing.B) {
 
 	tree := NewTreeBuilder(GetSha256Parent).
 		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
-		WithSortedLeavesToProve(leavesToProve).
+		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 1<<treeHeight; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
@@ -106,7 +106,7 @@ func TestGenerateProofWithRoot(t *testing.T) {
 	leavesToProve := []uint64{0, 4, 7}
 	tree := NewTreeBuilder(GetSha256Parent).
 		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
-		WithSortedLeavesToProve(leavesToProve).
+		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
@@ -139,7 +139,7 @@ func TestGenerateProofWithoutCache(t *testing.T) {
 	leavesToProve := []uint64{0, 4, 7}
 	tree := NewTreeBuilder(GetSha256Parent).
 		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
-		WithSortedLeavesToProve(leavesToProve).
+		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
@@ -169,7 +169,7 @@ func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 	leavesToProve := []uint64{0, 4, 7}
 	tree := NewTreeBuilder(GetSha256Parent).
 		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
-		WithSortedLeavesToProve(leavesToProve).
+		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
@@ -199,7 +199,7 @@ func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 	leavesToProve := []uint64{0, 4, 7}
 	tree := NewTreeBuilder(GetSha256Parent).
 		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
-		WithSortedLeavesToProve(leavesToProve).
+		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))

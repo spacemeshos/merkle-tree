@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/spacemeshos/sha256-simd"
 	"io"
+	"sort"
 )
 
 var ErrorIncompleteTree = errors.New("number of leaves must be a power of 2")
@@ -33,12 +34,19 @@ func newLayer(height uint, cache io.Writer) *layer {
 	return &layer{height: height, cache: cache}
 }
 
-type sparseBoolStack struct {
+type SparseBoolStack struct {
 	sortedTrueIndices []uint64
 	currentIndex      uint64
 }
 
-func (s *sparseBoolStack) pop() bool {
+func NewSparseBoolStack(trueIndices []uint64) *SparseBoolStack {
+	sorted := make([]uint64, len(trueIndices))
+	copy(sorted, trueIndices)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	return &SparseBoolStack{sortedTrueIndices: sorted}
+}
+
+func (s *SparseBoolStack) Pop() bool {
 	if len(s.sortedTrueIndices) == 0 {
 		return false
 	}
@@ -61,7 +69,7 @@ type Tree struct {
 	baseLayer     *layer // The leaf layer (0)
 	hash          HashFunc
 	proof         [][]byte
-	leavesToProve *sparseBoolStack
+	leavesToProve *SparseBoolStack
 	cache         map[uint]io.Writer
 }
 
@@ -70,7 +78,7 @@ type Tree struct {
 func (t *Tree) AddLeaf(value []byte) error {
 	n := node{
 		value:        value,
-		onProvenPath: t.leavesToProve.pop(),
+		onProvenPath: t.leavesToProve.Pop(),
 	}
 	l := t.baseLayer
 	var parent, lChild, rChild node
@@ -151,9 +159,9 @@ func (t *Tree) calcParent(lChild, rChild node) node {
 }
 
 type TreeBuilder struct {
-	hash HashFunc
-	sortedLeavesToProve []uint64
-	cache map[uint]io.Writer
+	hash           HashFunc
+	leavesToProves []uint64
+	cache          map[uint]io.Writer
 }
 
 func NewTreeBuilder(hash func(lChild []byte, rChild []byte) []byte) TreeBuilder {
@@ -167,13 +175,13 @@ func (tb TreeBuilder) Build() *Tree {
 	return &Tree{
 		baseLayer:     newLayer(0, tb.cache[0]),
 		hash:          tb.hash,
-		leavesToProve: &sparseBoolStack{sortedTrueIndices: tb.sortedLeavesToProve},
+		leavesToProve: NewSparseBoolStack(tb.leavesToProves),
 		cache:         tb.cache,
 	}
 }
 
-func (tb TreeBuilder) WithSortedLeavesToProve(sortedLeavesToProve []uint64) TreeBuilder {
-	tb.sortedLeavesToProve = sortedLeavesToProve
+func (tb TreeBuilder) WithLeavesToProve(leavesToProves []uint64) TreeBuilder {
+	tb.leavesToProves = leavesToProves
 	return tb
 }
 
@@ -186,8 +194,8 @@ func NewTree(hash HashFunc) *Tree {
 	return NewTreeBuilder(hash).Build()
 }
 
-func NewProvingTree(hash HashFunc, sortedLeavesToProve []uint64) *Tree {
-	return NewTreeBuilder(hash).WithSortedLeavesToProve(sortedLeavesToProve).Build()
+func NewProvingTree(hash HashFunc, leavesToProves []uint64) *Tree {
+	return NewTreeBuilder(hash).WithLeavesToProve(leavesToProves).Build()
 }
 
 func NewCachingTree(hash HashFunc, cache map[uint]io.Writer) *Tree {
