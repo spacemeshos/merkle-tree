@@ -18,17 +18,14 @@ func GenerateProof(
 	readers map[uint]NodeReader,
 	hash HashFunc,
 ) ([][]byte, error) {
-	var found bool
-
 	// Verify we got the base layer.
-	if _, found = readers[0]; !found {
+	if _, found := readers[0]; !found {
 		return nil, errors.New("reader for base layer must be included")
 	}
 
 	provenLeafIndexIt := &positionsIterator{s: provenLeafIndices}
 	var currentPos, subtreeStart position
 	var width uint64
-	var currentVal []byte
 	skipPositions := &positionsStack{}
 	rootHeight := rootHeightFromWidth(readers[0].Width())
 
@@ -36,8 +33,8 @@ func GenerateProof(
 	for ; ; currentPos = currentPos.parent() { // Process proven leaves:
 
 		// Get the leaf whose subtree we'll traverse.
-		nextProvenLeaf, err := provenLeafIndexIt.peek()
-		if err == noMoreItems {
+		nextProvenLeafPos, found := provenLeafIndexIt.peek()
+		if !found {
 			// If there are no more leaves to prove - we're done.
 			break
 		}
@@ -46,10 +43,10 @@ func GenerateProof(
 		reader := readers[0]
 
 		// Get indices for the bottom left corner of the subtree and its root, as well as the bottom layer's width.
-		subtreeStart, currentPos, width = subtreeDefinition(nextProvenLeaf, readers)
+		subtreeStart, currentPos, width = subtreeDefinition(nextProvenLeafPos, readers)
 
 		// Prepare reader to read subtree leaves.
-		err = reader.Seek(subtreeStart.index)
+		err := reader.Seek(subtreeStart.index)
 		if err != nil {
 			return nil, errors.New("while preparing to traverse subtree: " + err.Error())
 		}
@@ -80,7 +77,7 @@ func GenerateProof(
 
 			// If the current node sibling is an ancestor of the next proven leaf sibling we should process it's subtree
 			// instead of adding it to the proof. When we reach it again we'll want to skip it.
-			if p, err := provenLeafIndexIt.peek(); err == nil && currentPos.sibling().isAncestorOf(p) {
+			if p, found := provenLeafIndexIt.peek(); found && currentPos.sibling().isAncestorOf(p) {
 				skipPositions.Push(currentPos.sibling())
 				break
 			}
@@ -105,7 +102,7 @@ func GenerateProof(
 
 				// Traverse the subtree.
 				width = 1 << (currentPos.height - subtreeStart.height)
-				_, currentVal, err = traverseSubtree(reader, width, hash, nil)
+				_, currentVal, err := traverseSubtree(reader, width, hash, nil)
 				if err != nil {
 					return nil, errors.New("while traversing subtree for root: " + err.Error())
 				}
@@ -120,7 +117,7 @@ func GenerateProof(
 			if err != nil {
 				return nil, errors.New("while seeking in cache: " + err.Error() + currentPos.sibling().String())
 			}
-			currentVal, err = reader.ReadNext()
+			currentVal, err := reader.ReadNext()
 			if err != nil {
 				return nil, errors.New("while reading from cache: " + err.Error())
 			}
@@ -204,21 +201,21 @@ type positionsIterator struct {
 	s []uint64
 }
 
-func (it *positionsIterator) next() (position, error) {
+func (it *positionsIterator) next() (pos position, found bool) {
 	if len(it.s) == 0 {
-		return position{}, noMoreItems
+		return position{}, false
 	}
 	index := it.s[0]
 	it.s = it.s[1:]
-	return position{index: index}, nil
+	return position{index: index}, true
 }
 
-func (it *positionsIterator) peek() (position, error) {
+func (it *positionsIterator) peek() (pos position, found bool) {
 	if len(it.s) == 0 {
-		return position{}, noMoreItems
+		return position{}, false
 	}
 	index := it.s[0]
-	return position{index: index}, nil
+	return position{index: index}, true
 }
 
 // batchPop returns the indices of all positions in the range startIndex to endIndex.
