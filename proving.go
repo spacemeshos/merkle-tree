@@ -55,7 +55,12 @@ func GenerateProof(
 		}
 
 		// Prepare list of leaves to prove in the subtree.
-		leavesToProve := provenLeafIndexIt.batchPopRelativeIndices(subtreeStart.index, width)
+		leavesToProve := provenLeafIndexIt.batchPop(subtreeStart.index, subtreeStart.index+width)
+
+		// By subtracting subtreeStart.index we get the index relative to the subtree.
+		for i, leafIndex := range leavesToProve {
+			leavesToProve[i] = leafIndex - subtreeStart.index
+		}
 
 		// Traverse the subtree and append the additional proof nodes to the existing proof.
 		additionalProof, _, err = traverseSubtree(reader, width, hash, leavesToProve)
@@ -216,13 +221,11 @@ func (it *positionsIterator) peek() (position, error) {
 	return position{index: index}, nil
 }
 
-// batchPopRelativeIndices returns the indices, relative to the start index, of all positions starting at startIndex and
-// spanning the requested width.
-func (it *positionsIterator) batchPopRelativeIndices(startIndex, width uint64) []uint64 {
+// batchPop returns the indices of all positions in the range startIndex to endIndex.
+func (it *positionsIterator) batchPop(startIndex, endIndex uint64) []uint64 {
 	var relativeIndices []uint64
-	for len(it.s) > 0 && it.s[0] < startIndex+width {
-		// By subtracting startIndex we get the relative index.
-		relativeIndices = append(relativeIndices, it.s[0]-startIndex)
+	for len(it.s) > 0 && it.s[0] < endIndex {
+		relativeIndices = append(relativeIndices, it.s[0])
 		it.s = it.s[1:]
 	}
 	return relativeIndices
