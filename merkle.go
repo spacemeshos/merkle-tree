@@ -151,28 +151,34 @@ func (t *Tree) calcParent(lChild, rChild node) node {
 }
 
 type TreeBuilder struct {
-	t Tree
+	hash HashFunc
+	sortedLeavesToProve []uint64
+	cache map[uint]io.Writer
 }
 
 func NewTreeBuilder(hash func(lChild []byte, rChild []byte) []byte) TreeBuilder {
-	return TreeBuilder{t: Tree{hash: hash, leavesToProve: &sparseBoolStack{}}}
+	return TreeBuilder{hash: hash}
 }
 
 func (tb TreeBuilder) Build() *Tree {
-	if tb.t.cache == nil {
-		tb.t.cache = make(map[uint]io.Writer)
+	if tb.cache == nil {
+		tb.cache = make(map[uint]io.Writer)
 	}
-	tb.t.baseLayer = newLayer(0, tb.t.cache[0])
-	return &tb.t
+	return &Tree{
+		baseLayer:     newLayer(0, tb.cache[0]),
+		hash:          tb.hash,
+		leavesToProve: &sparseBoolStack{sortedTrueIndices: tb.sortedLeavesToProve},
+		cache:         tb.cache,
+	}
 }
 
 func (tb TreeBuilder) WithSortedLeavesToProve(sortedLeavesToProve []uint64) TreeBuilder {
-	tb.t.leavesToProve.sortedTrueIndices = sortedLeavesToProve
+	tb.sortedLeavesToProve = sortedLeavesToProve
 	return tb
 }
 
 func (tb TreeBuilder) WithCache(cache map[uint]io.Writer) TreeBuilder {
-	tb.t.cache = cache
+	tb.cache = cache
 	return tb
 }
 
