@@ -18,18 +18,20 @@ func GenerateProof(
 	readers map[uint]NodeReader,
 	hash HashFunc,
 ) ([][]byte, error) {
-	// Verify we got the base layer.
-	if _, found := readers[0]; !found {
-		return nil, errors.New("reader for base layer must be included")
-	}
 
-	provenLeafIndexIt := &positionsIterator{s: provenLeafIndices}
 	var currentPos, subtreeStart position
 	var width uint64
+	var proof, additionalProof [][]byte
+
+	provenLeafIndexIt := &positionsIterator{s: provenLeafIndices}
 	skipPositions := &positionsStack{}
 	rootHeight := rootHeightFromWidth(readers[0].Width())
 
-	var proof, additionalProof [][]byte
+	cache, err := NewTreeCache(readers, hash)
+	if err != nil {
+		return nil, err
+	}
+
 	for ; ; currentPos = currentPos.parent() { // Process proven leaves:
 
 		// Get the leaf whose subtree we'll traverse.
@@ -52,7 +54,7 @@ func GenerateProof(
 		}
 
 		// Prepare list of leaves to prove in the subtree.
-		leavesToProve := provenLeafIndexIt.batchPop(subtreeStart.index, subtreeStart.index+width)
+		leavesToProve := provenLeafIndexIt.batchPop(subtreeStart.index + width)
 
 		// By subtracting subtreeStart.index we get the index relative to the subtree.
 		for i, leafIndex := range leavesToProve {
@@ -82,50 +84,79 @@ func GenerateProof(
 				break
 			}
 
-			// Add the current node sibling to the proof:
-
-			// Get the cache reader for the current layer.
-			reader, found = readers[currentPos.height]
-
-			// If the cache wan't found, we calculate the minimal subtree that will get us the required node.
-			if !found {
-				// Find the next cached layer below the current one.
-				for subtreeStart = currentPos.leftChild(); !found; subtreeStart = subtreeStart.leftChild() {
-					reader, found = readers[subtreeStart.height]
-				}
-
-				// Prepare the reader for traversing the subtree.
-				err := reader.Seek(subtreeStart.index)
-				if err != nil {
-					return nil, errors.New("while seeking in cache: " + err.Error() + subtreeStart.String())
-				}
-
-				// Traverse the subtree.
-				width = 1 << (currentPos.height - subtreeStart.height)
-				_, currentVal, err := traverseSubtree(reader, width, hash, nil)
-				if err != nil {
-					return nil, errors.New("while traversing subtree for root: " + err.Error())
-				}
-
-				// Append the root of the subtree to the proof and move to its parent.
-				proof = append(proof, currentVal)
-				continue
-			}
-
-			// Read the current node sibling and add it to the proof.
-			err = reader.Seek(currentPos.sibling().index)
+			currentVal, err := cache.GetNode(currentPos.sibling())
 			if err != nil {
-				return nil, errors.New("while seeking in cache: " + err.Error() + currentPos.sibling().String())
+				return nil, err
 			}
-			currentVal, err := reader.ReadNext()
-			if err != nil {
-				return nil, errors.New("while reading from cache: " + err.Error())
-			}
+
 			proof = append(proof, currentVal)
 		}
 	}
 
 	return proof, nil
+}
+
+type TreeCache struct {
+	readers map[uint]NodeReader
+	hash    HashFunc
+}
+
+// GetNode reads the node at the requested position from the cache or calculates it if not available.
+func (c *TreeCache) GetNode(nodePos position) ([]byte, error) {
+	// Get the cache reader for the requested node's layer.
+	reader, found := c.readers[nodePos.height]
+
+	// If the cache wan't found, we calculate the minimal subtree that will get us the required node.
+	if !found {
+		return c.calcNode(nodePos)
+	}
+
+	err := reader.Seek(nodePos.index)
+	if err != nil {
+		return nil, errors.New("while seeking in cache: " + err.Error() + nodePos.String())
+	}
+	currentVal, err := reader.ReadNext()
+	if err != nil {
+		return nil, errors.New("while reading from cache: " + err.Error())
+	}
+	return currentVal, nil
+}
+
+func (c *TreeCache) calcNode(nodePos position) ([]byte, error) {
+	var subtreeStart position
+	var found bool
+	var reader NodeReader
+
+	// Find the next cached layer below the current one.
+	for subtreeStart = nodePos.leftChild(); !found; subtreeStart = subtreeStart.leftChild() {
+		reader, found = c.readers[subtreeStart.height]
+	}
+
+	// Prepare the reader for traversing the subtree.
+	err := reader.Seek(subtreeStart.index)
+	if err != nil {
+		return nil, errors.New("while seeking in cache: " + err.Error() + subtreeStart.String())
+	}
+
+	// Traverse the subtree.
+	width := uint64(1) << (nodePos.height - subtreeStart.height)
+	_, currentVal, err := traverseSubtree(reader, width, c.hash, nil)
+	if err != nil {
+		return nil, errors.New("while traversing subtree for root: " + err.Error())
+	}
+	return currentVal, nil
+}
+
+func NewTreeCache(readers map[uint]NodeReader, hash HashFunc) (*TreeCache, error) {
+	// Verify we got the base layer.
+	if _, found := readers[0]; !found {
+		return nil, errors.New("reader for base layer must be included")
+	}
+
+	return &TreeCache{
+		readers: readers,
+		hash:    hash,
+	}, nil
 }
 
 // subtreeDefinition returns the definition (firstLeaf and root positions, width) for the minimal subtree whose
@@ -218,12 +249,12 @@ func (it *positionsIterator) peek() (pos position, found bool) {
 	return position{index: index}, true
 }
 
-// batchPop returns the indices of all positions in the range startIndex to endIndex.
-func (it *positionsIterator) batchPop(startIndex, endIndex uint64) []uint64 {
-	var relativeIndices []uint64
+// batchPop returns the indices of all positions up to endIndex.
+func (it *positionsIterator) batchPop(endIndex uint64) []uint64 {
+	var res []uint64
 	for len(it.s) > 0 && it.s[0] < endIndex {
-		relativeIndices = append(relativeIndices, it.s[0])
+		res = append(res, it.s[0])
 		it.s = it.s[1:]
 	}
-	return relativeIndices
+	return res
 }
