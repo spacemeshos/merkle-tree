@@ -11,7 +11,7 @@ const MaxUint = ^uint(0)
 // ValidatePartialTree uses leafIndices, leaves and proof to calculate the merkle root of the tree and then compares it
 // to expectedRoot.
 func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
-	hash func(lChild, rChild []byte) []byte) (bool, error) {
+	hash HashFunc) (bool, error) {
 	v, err := newValidator(leafIndices, leaves, proof, hash)
 	if err != nil {
 		return false, err
@@ -20,8 +20,7 @@ func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedR
 	return bytes.Equal(root, expectedRoot), err
 }
 
-func newValidator(leafIndices []uint64, leaves, proof [][]byte,
-	hash func(lChild, rChild []byte) []byte) (validator, error) {
+func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc) (validator, error) {
 	if len(leafIndices) != len(leaves) {
 		return validator{}, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves),
 			len(leafIndices))
@@ -38,7 +37,7 @@ func newValidator(leafIndices []uint64, leaves, proof [][]byte,
 type validator struct {
 	leaves     *leafIterator
 	proofNodes *proofIterator
-	hash       func(lChild, rChild []byte) []byte
+	hash       HashFunc
 }
 
 func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {

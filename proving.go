@@ -16,7 +16,7 @@ type NodeReader interface {
 func GenerateProof(
 	provenLeafIndices []uint64,
 	readers map[uint]NodeReader,
-	hash func(lChild, rChild []byte) []byte,
+	hash HashFunc,
 ) ([][]byte, error) {
 	var found bool
 
@@ -148,7 +148,7 @@ func subtreeDefinition(p position, readers map[uint]NodeReader) (firstLeaf, root
 	return firstLeaf, root, 1 << subtreeHeight
 }
 
-func traverseSubtree(leafReader NodeReader, width uint64, hash func(lChild, rChild []byte) []byte,
+func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc,
 	leavesToProve []uint64) ([][]byte, []byte, error) {
 
 	t := NewProvingTree(hash, leavesToProve)

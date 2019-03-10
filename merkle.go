@@ -50,6 +50,8 @@ func (s *sparseBoolStack) pop() bool {
 	return ret
 }
 
+type HashFunc func(lChild, rChild []byte) []byte
+
 // Tree calculates a merkle tree root. It can optionally calculate a proof, or partial tree, for leaves defined in
 // advance. Leaves are appended to the tree incrementally. It uses O(log(n)) memory to calculate the root and
 // O(k*log(n)) (k being the number of leaves to prove) memory to calculate proofs.
@@ -57,7 +59,7 @@ func (s *sparseBoolStack) pop() bool {
 // Tree is NOT thread safe.
 type Tree struct {
 	baseLayer     *layer // The leaf layer (0)
-	hash          func(lChild, rChild []byte) []byte
+	hash          HashFunc
 	proof         [][]byte
 	leavesToProve *sparseBoolStack
 	cache         map[uint]io.Writer
@@ -174,15 +176,15 @@ func (tb TreeBuilder) WithCache(cache map[uint]io.Writer) TreeBuilder {
 	return tb
 }
 
-func NewTree(hash func(lChild, rChild []byte) []byte) *Tree {
+func NewTree(hash HashFunc) *Tree {
 	return NewTreeBuilder(hash).Build()
 }
 
-func NewProvingTree(hash func(lChild, rChild []byte) []byte, sortedLeavesToProve []uint64) *Tree {
+func NewProvingTree(hash HashFunc, sortedLeavesToProve []uint64) *Tree {
 	return NewTreeBuilder(hash).WithSortedLeavesToProve(sortedLeavesToProve).Build()
 }
 
-func NewCachingTree(hash func(lChild, rChild []byte) []byte, cache map[uint]io.Writer) *Tree {
+func NewCachingTree(hash HashFunc, cache map[uint]io.Writer) *Tree {
 	return NewTreeBuilder(hash).WithCache(cache).Build()
 }
 
