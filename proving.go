@@ -59,10 +59,10 @@ func GenerateProof(
 
 		// Traverse the subtree and append the additional proof nodes to the existing proof.
 		additionalProof, _, err = traverseSubtree(reader, width, hash, leavesToProve)
-		proof = append(proof, additionalProof...)
 		if err != nil {
 			return nil, errors.New("while traversing subtree: " + err.Error())
 		}
+		proof = append(proof, additionalProof...)
 
 		for ; currentPos.height < rootHeight; currentPos = currentPos.parent() { // Traverse cache:
 
