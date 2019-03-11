@@ -303,3 +303,30 @@ func BenchmarkNewCachingTreeSmall(b *testing.B) {
 	   merkle_test.go:242: 3.054842184s
 	*/
 }
+
+func TestSparseBoolStack(t *testing.T) {
+	r := require.New(t)
+
+	allFalse := newSparseBoolStack([]uint64{})
+	for i := 0; i < 1000; i++ {
+		r.False(allFalse.Pop())
+	}
+
+	allTrue := newSparseBoolStack([]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	for i := 0; i < 10; i++ {
+		r.True(allTrue.Pop())
+	}
+
+	rounds := make([]uint64, 0, 100)
+	for i := 0; i < 1000; i += 10 {
+		rounds = append(rounds, uint64(i))
+	}
+	roundsTrue := newSparseBoolStack(rounds)
+	for i := 0; i < 1000; i++ {
+		if i%10 == 0 {
+			r.True(roundsTrue.Pop())
+		} else {
+			r.False(roundsTrue.Pop())
+		}
+	}
+}
