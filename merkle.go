@@ -34,19 +34,19 @@ func newLayer(height uint, cache io.Writer) *layer {
 	return &layer{height: height, cache: cache}
 }
 
-type SparseBoolStack struct {
+type sparseBoolStack struct {
 	sortedTrueIndices []uint64
 	currentIndex      uint64
 }
 
-func NewSparseBoolStack(trueIndices []uint64) *SparseBoolStack {
+func newSparseBoolStack(trueIndices []uint64) *sparseBoolStack {
 	sorted := make([]uint64, len(trueIndices))
 	copy(sorted, trueIndices)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
-	return &SparseBoolStack{sortedTrueIndices: sorted}
+	return &sparseBoolStack{sortedTrueIndices: sorted}
 }
 
-func (s *SparseBoolStack) Pop() bool {
+func (s *sparseBoolStack) Pop() bool {
 	if len(s.sortedTrueIndices) == 0 {
 		return false
 	}
@@ -69,7 +69,7 @@ type Tree struct {
 	baseLayer     *layer // The leaf layer (0)
 	hash          HashFunc
 	proof         [][]byte
-	leavesToProve *SparseBoolStack
+	leavesToProve *sparseBoolStack
 	cache         map[uint]io.Writer
 }
 
@@ -175,7 +175,7 @@ func (tb TreeBuilder) Build() *Tree {
 	return &Tree{
 		baseLayer:     newLayer(0, tb.cache[0]),
 		hash:          tb.hash,
-		leavesToProve: NewSparseBoolStack(tb.leavesToProves),
+		leavesToProve: newSparseBoolStack(tb.leavesToProves),
 		cache:         tb.cache,
 	}
 }

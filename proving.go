@@ -19,9 +19,7 @@ func GenerateProof(
 	hash HashFunc,
 ) ([][]byte, error) {
 
-	var currentPos, subtreeStart position
-	var width uint64
-	var proof, additionalProof [][]byte
+	var proof [][]byte
 
 	provenLeafIndexIt := &positionsIterator{s: provenLeafIndices}
 	skipPositions := &positionsStack{}
@@ -32,7 +30,7 @@ func GenerateProof(
 		return nil, err
 	}
 
-	for ; ; currentPos = currentPos.parent() { // Process proven leaves:
+	for { // Process proven leaves:
 
 		// Get the leaf whose subtree we'll traverse.
 		nextProvenLeafPos, found := provenLeafIndexIt.peek()
@@ -41,30 +39,9 @@ func GenerateProof(
 			break
 		}
 
-		// Get the reader for the leaf layer.
-		reader := readers[0]
-
-		// Get indices for the bottom left corner of the subtree and its root, as well as the bottom layer's width.
-		subtreeStart, currentPos, width = subtreeDefinition(nextProvenLeafPos, readers)
-
-		// Prepare reader to read subtree leaves.
-		err := reader.Seek(subtreeStart.index)
+		additionalProof, currentPos, err := cache.calcProofForNextLeaf(nextProvenLeafPos, provenLeafIndexIt)
 		if err != nil {
-			return nil, errors.New("while preparing to traverse subtree: " + err.Error())
-		}
-
-		// Prepare list of leaves to prove in the subtree.
-		leavesToProve := provenLeafIndexIt.batchPop(subtreeStart.index + width)
-
-		// By subtracting subtreeStart.index we get the index relative to the subtree.
-		for i, leafIndex := range leavesToProve {
-			leavesToProve[i] = leafIndex - subtreeStart.index
-		}
-
-		// Traverse the subtree and append the additional proof nodes to the existing proof.
-		additionalProof, _, err = traverseSubtree(reader, width, hash, leavesToProve)
-		if err != nil {
-			return nil, errors.New("while traversing subtree: " + err.Error())
+			return nil, err
 		}
 		proof = append(proof, additionalProof...)
 
@@ -72,7 +49,7 @@ func GenerateProof(
 
 			// Check if we're revisiting a node. If we've descended into a subtree and just got back, we shouldn't add
 			// the sibling to the proof and instead move on to the parent.
-			found = skipPositions.PopIfEqual(currentPos)
+			found := skipPositions.PopIfEqual(currentPos)
 			if found {
 				continue
 			}
@@ -147,6 +124,38 @@ func (c *TreeCache) calcNode(nodePos position) ([]byte, error) {
 	return currentVal, nil
 }
 
+func (c *TreeCache) calcProofForNextLeaf(nextProvenLeafPos position, provenLeafIndexIt *positionsIterator) ([][]byte,
+	position, error) {
+
+	// Get the reader for the leaf layer.
+	reader := c.readers[0]
+
+	// Get indices for the bottom left corner of the subtree and its root, as well as the bottom layer's width.
+	subtreeStart, currentPos, width := subtreeDefinition(nextProvenLeafPos, c.readers)
+
+	// Prepare reader to read subtree leaves.
+	err := reader.Seek(subtreeStart.index)
+	if err != nil {
+		return nil, position{}, errors.New("while preparing to traverse subtree: " + err.Error())
+	}
+
+	// Prepare list of leaves to prove in the subtree.
+	leavesToProve := provenLeafIndexIt.batchPop(subtreeStart.index + width)
+
+	// By subtracting subtreeStart.index we get the index relative to the subtree.
+	for i, leafIndex := range leavesToProve {
+		leavesToProve[i] = leafIndex - subtreeStart.index
+	}
+
+	// Traverse the subtree and append the additional proof nodes to the existing proof.
+	additionalProof, _, err := traverseSubtree(reader, width, c.hash, leavesToProve)
+	if err != nil {
+		return nil, position{}, errors.New("while traversing subtree: " + err.Error())
+	}
+
+	return additionalProof, currentPos, err
+}
+
 func NewTreeCache(readers map[uint]NodeReader, hash HashFunc) (*TreeCache, error) {
 	// Verify we got the base layer.
 	if _, found := readers[0]; !found {
@@ -160,7 +169,8 @@ func NewTreeCache(readers map[uint]NodeReader, hash HashFunc) (*TreeCache, error
 }
 
 // subtreeDefinition returns the definition (firstLeaf and root positions, width) for the minimal subtree whose
-// base layer includes p and where the root is on a cached layer.
+// base layer includes p and where the root is on a cached layer. If no cached layer exists above the base layer, the
+// subtree will reach the root of the original tree.
 func subtreeDefinition(p position, readers map[uint]NodeReader) (firstLeaf, root position, width uint64) {
 	// maxRootHeight represents the max height of the tree, based on the width of base layer. This is used to prevent an
 	// infinite loop.
