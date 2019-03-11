@@ -2,7 +2,6 @@ package merkle
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 )
 
@@ -73,85 +72,4 @@ func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
 		activePos = activePos.parent()
 	}
 	return activeNode, nil
-}
-
-var noMoreItems = errors.New("no more items")
-
-type proofIterator struct {
-	nodes [][]byte
-}
-
-func (it *proofIterator) next() ([]byte, error) {
-	if len(it.nodes) == 0 {
-		return nil, noMoreItems
-	}
-	n := it.nodes[0]
-	it.nodes = it.nodes[1:]
-	return n, nil
-}
-
-type leafIterator struct {
-	indices []uint64
-	leaves  [][]byte
-}
-
-// leafIterator.next() returns the leaf index and value
-func (it *leafIterator) next() (position, []byte, error) {
-	if len(it.indices) == 0 {
-		return position{}, nil, noMoreItems
-	}
-	idx := it.indices[0]
-	leaf := it.leaves[0]
-	it.indices = it.indices[1:]
-	it.leaves = it.leaves[1:]
-	return position{index: idx}, leaf, nil
-}
-
-// leafIterator.peek() returns the leaf index but doesn't move the iterator to this leaf as next would do
-func (it *leafIterator) peek() (position, []byte, error) {
-	if len(it.indices) == 0 {
-		return position{}, nil, noMoreItems
-	}
-	return position{index: it.indices[0]}, it.leaves[0], nil
-}
-
-type position struct {
-	index  uint64
-	height uint
-}
-
-func (p position) String() string {
-	return fmt.Sprintf("<h: %d i: %b>", p.height, p.index)
-}
-
-func (p position) sibling() position {
-	return position{
-		index:  p.index ^ 1,
-		height: p.height,
-	}
-}
-
-func (p position) isAncestorOf(other position) bool {
-	if p.height < other.height {
-		return false
-	}
-	return p.index == (other.index >> (p.height - other.height))
-}
-
-func (p position) isRightSibling() bool {
-	return p.index%2 == 1
-}
-
-func (p position) parent() position {
-	return position{
-		index:  p.index >> 1,
-		height: p.height + 1,
-	}
-}
-
-func (p position) leftChild() position {
-	return position{
-		index:  p.index << 1,
-		height: p.height - 1,
-	}
 }
