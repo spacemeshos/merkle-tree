@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/spacemeshos/sha256-simd"
 	"io"
+	"sort"
 )
 
 var ErrorIncompleteTree = errors.New("number of leaves must be a power of 2")
@@ -38,7 +39,14 @@ type sparseBoolStack struct {
 	currentIndex      uint64
 }
 
-func (s *sparseBoolStack) pop() bool {
+func newSparseBoolStack(trueIndices []uint64) *sparseBoolStack {
+	sorted := make([]uint64, len(trueIndices))
+	copy(sorted, trueIndices)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+	return &sparseBoolStack{sortedTrueIndices: sorted}
+}
+
+func (s *sparseBoolStack) Pop() bool {
 	if len(s.sortedTrueIndices) == 0 {
 		return false
 	}
@@ -50,6 +58,8 @@ func (s *sparseBoolStack) pop() bool {
 	return ret
 }
 
+type HashFunc func(lChild, rChild []byte) []byte
+
 // Tree calculates a merkle tree root. It can optionally calculate a proof, or partial tree, for leaves defined in
 // advance. Leaves are appended to the tree incrementally. It uses O(log(n)) memory to calculate the root and
 // O(k*log(n)) (k being the number of leaves to prove) memory to calculate proofs.
@@ -57,7 +67,7 @@ func (s *sparseBoolStack) pop() bool {
 // Tree is NOT thread safe.
 type Tree struct {
 	baseLayer     *layer // The leaf layer (0)
-	hash          func(lChild, rChild []byte) []byte
+	hash          HashFunc
 	proof         [][]byte
 	leavesToProve *sparseBoolStack
 	cache         map[uint]io.Writer
@@ -68,7 +78,7 @@ type Tree struct {
 func (t *Tree) AddLeaf(value []byte) error {
 	n := node{
 		value:        value,
-		onProvenPath: t.leavesToProve.pop(),
+		onProvenPath: t.leavesToProve.Pop(),
 	}
 	l := t.baseLayer
 	var parent, lChild, rChild node
@@ -148,24 +158,48 @@ func (t *Tree) calcParent(lChild, rChild node) node {
 	}
 }
 
-func NewTree(hash func(lChild, rChild []byte) []byte) *Tree {
-	return NewCachingTree(hash, make(map[uint]io.Writer))
+type TreeBuilder struct {
+	hash           HashFunc
+	leavesToProves []uint64
+	cache          map[uint]io.Writer
 }
 
-func NewProvingTree(hash func(lChild, rChild []byte) []byte, sortedLeavesToProve []uint64) *Tree {
-	t := NewTree(hash)
-	t.leavesToProve.sortedTrueIndices = sortedLeavesToProve
-	return t
+func NewTreeBuilder(hash func(lChild []byte, rChild []byte) []byte) TreeBuilder {
+	return TreeBuilder{hash: hash}
 }
 
-func NewCachingTree(hash func(lChild, rChild []byte) []byte, cache map[uint]io.Writer) *Tree {
-	t := &Tree{
-		hash:          hash,
-		baseLayer:     newLayer(0, cache[0]),
-		leavesToProve: &sparseBoolStack{},
+func (tb TreeBuilder) Build() *Tree {
+	if tb.cache == nil {
+		tb.cache = make(map[uint]io.Writer)
 	}
-	t.cache = cache
-	return t
+	return &Tree{
+		baseLayer:     newLayer(0, tb.cache[0]),
+		hash:          tb.hash,
+		leavesToProve: newSparseBoolStack(tb.leavesToProves),
+		cache:         tb.cache,
+	}
+}
+
+func (tb TreeBuilder) WithLeavesToProve(leavesToProves []uint64) TreeBuilder {
+	tb.leavesToProves = leavesToProves
+	return tb
+}
+
+func (tb TreeBuilder) WithCache(cache map[uint]io.Writer) TreeBuilder {
+	tb.cache = cache
+	return tb
+}
+
+func NewTree(hash HashFunc) *Tree {
+	return NewTreeBuilder(hash).Build()
+}
+
+func NewProvingTree(hash HashFunc, leavesToProves []uint64) *Tree {
+	return NewTreeBuilder(hash).WithLeavesToProve(leavesToProves).Build()
+}
+
+func NewCachingTree(hash HashFunc, cache map[uint]io.Writer) *Tree {
+	return NewTreeBuilder(hash).WithCache(cache).Build()
 }
 
 func GetSha256Parent(lChild, rChild []byte) []byte {
