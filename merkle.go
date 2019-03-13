@@ -7,12 +7,20 @@ import (
 	"sort"
 )
 
-var ErrorIncompleteTree = errors.New("number of leaves must be a power of 2")
+// PaddingValue is used for padding unbalanced trees. This value should not be permitted at the leaf layer to
+// distinguish padding from actual members of the tree.
+var PaddingValue = node{
+	value: []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+}
 
 // node is a node in the merkle tree.
 type node struct {
 	value        []byte
 	onProvenPath bool // Whether this node is an ancestor of a leaf whose membership in the tree is being proven.
+}
+
+func (n node) IsEmpty() bool {
+	return n.value == nil
 }
 
 // layer is a layer in the merkle tree.
@@ -26,7 +34,7 @@ type layer struct {
 // ensureNextLayerExists creates the next layer if it doesn't exist.
 func (l *layer) ensureNextLayerExists(cache map[uint]io.Writer) {
 	if l.next == nil {
-		l.next = newLayer(l.height+1, cache[(l.height+1)])
+		l.next = newLayer(l.height+1, cache[(l.height + 1)])
 	}
 }
 
@@ -71,6 +79,7 @@ type Tree struct {
 	proof         [][]byte
 	leavesToProve *sparseBoolStack
 	cache         map[uint]io.Writer
+	minHeight     uint
 }
 
 // AddLeaf incorporates a new leaf to the state of the tree. It updates the state required to eventually determine the
@@ -96,7 +105,7 @@ func (t *Tree) AddLeaf(value []byte) error {
 
 		// If no node is pending, then this node is a left sibling,
 		// pending for its right sibling before its parent can be calculated.
-		if l.parking.value == nil {
+		if l.parking.IsEmpty() {
 			l.parking = n
 			break
 		} else {
@@ -124,30 +133,89 @@ func (t *Tree) AddLeaf(value []byte) error {
 	return lastCachingError
 }
 
-// Root returns the root of the tree or an error if the number of leaves added is not a power of 2.
-func (t *Tree) Root() ([]byte, error) {
-	l := t.baseLayer
-	for {
-		if l.next == nil {
-			return l.parking.value, nil
-		}
-		if l.parking.value != nil {
-			return nil, ErrorIncompleteTree
-		}
-		l = l.next
+func nextOrEmptyLayer(l *layer) *layer {
+	if l.next != nil {
+		return l.next
 	}
+	return &layer{height: l.height + 1}
+}
+
+// Root returns the root of the tree.
+// If the tree is unbalanced (num. of leaves is not a power of 2) it will perform padding on-the-fly.
+func (t *Tree) Root() []byte {
+	root, _ := t.RootAndProof()
+	return root
 }
 
 // Proof returns a partial tree proving the membership of leaves that were passed in leavesToProve when the tree was
-// initialized or an error if the number of leaves added is not a power of 2. For a single proved leaf this is a
-// standard merkle proof (one sibling per layer of the tree from the leaves to the root, excluding the proved leaf
-// and root).
-func (t *Tree) Proof() ([][]byte, error) {
-	// We call t.Root() to traverse the layers and ensure the tree is full.
-	if _, err := t.Root(); err != nil {
-		return nil, err
+// initialized. For a single proved leaf this is a standard merkle proof (one sibling per layer of the tree from the
+// leaves to the root, excluding the proved leaf and root).
+// If the tree is unbalanced (num. of leaves is not a power of 2) it will perform padding on-the-fly.
+func (t *Tree) Proof() [][]byte {
+	_, proof := t.RootAndProof()
+	return proof
+}
+
+// RootAndProof returns the root of the tree and a partial tree proving the membership of leaves that were passed in
+// leavesToProve when the tree was initialized. For a single proved leaf this is a standard merkle proof (one sibling
+// per layer of the tree from the leaves to the root, excluding the proved leaf and root).
+// If the tree is unbalanced (num. of leaves is not a power of 2) it will perform padding on-the-fly.
+func (t *Tree) RootAndProof() ([]byte, [][]byte) {
+	ephemeralProof := t.proof
+	var ephemeralNode node
+	l := t.baseLayer
+	for height := uint(0); height < t.minHeight || l != nil; height++ {
+
+		// If we've reached the last layer and the ephemeral node is still empty, the tree is balanced and the parked
+		// node is its root.
+		// In any other case (minHeight not reached, or the tree is unbalanced) we want to add padding at this point.
+		reachedMinHeight := height >= t.minHeight
+		onLastLayer := l != nil && l.next == nil
+		parkingIsBalancedTreeRoot := reachedMinHeight && onLastLayer && ephemeralNode.IsEmpty()
+		if parkingIsBalancedTreeRoot {
+			return l.parking.value, ephemeralProof
+		}
+
+		var parking node
+		if l != nil {
+			parking = l.parking
+		}
+		parent, lChild, rChild := t.calcEphemeralParent(parking, ephemeralNode)
+
+		// Consider adding children to the ephemeralProof.
+		if parent.onProvenPath {
+			if !lChild.onProvenPath {
+				ephemeralProof = append(ephemeralProof, lChild.value)
+			}
+			if !rChild.onProvenPath {
+				ephemeralProof = append(ephemeralProof, rChild.value)
+			}
+		}
+		ephemeralNode = parent
+		if l != nil {
+			l = l.next
+		}
 	}
-	return t.proof, nil
+	return ephemeralNode.value, ephemeralProof
+}
+
+// calcEphemeralParent calculates the parent using the layer parking and ephemeralNode. When one of those is missing it
+// uses PaddingValue to pad. It returns the actual nodes used along with the parent.
+func (t *Tree) calcEphemeralParent(parking, ephemeralNode node) (parent, lChild, rChild node) {
+	switch {
+	case !parking.IsEmpty() && !ephemeralNode.IsEmpty():
+		lChild, rChild = parking, ephemeralNode
+
+	case !parking.IsEmpty() && ephemeralNode.IsEmpty():
+		lChild, rChild = parking, PaddingValue
+
+	case parking.IsEmpty() && !ephemeralNode.IsEmpty():
+		lChild, rChild = ephemeralNode, PaddingValue
+
+	default: // both are empty
+		return ephemeralNode, ephemeralNode, ephemeralNode
+	}
+	return t.calcParent(lChild, rChild), lChild, rChild
 }
 
 // calcParent returns the parent node of two child nodes.
@@ -162,9 +230,10 @@ type TreeBuilder struct {
 	hash           HashFunc
 	leavesToProves []uint64
 	cache          map[uint]io.Writer
+	minHeight      uint
 }
 
-func NewTreeBuilder(hash func(lChild []byte, rChild []byte) []byte) TreeBuilder {
+func NewTreeBuilder(hash HashFunc) TreeBuilder {
 	return TreeBuilder{hash: hash}
 }
 
@@ -177,6 +246,7 @@ func (tb TreeBuilder) Build() *Tree {
 		hash:          tb.hash,
 		leavesToProve: newSparseBoolStack(tb.leavesToProves),
 		cache:         tb.cache,
+		minHeight:     tb.minHeight,
 	}
 }
 
@@ -187,6 +257,11 @@ func (tb TreeBuilder) WithLeavesToProve(leavesToProves []uint64) TreeBuilder {
 
 func (tb TreeBuilder) WithCache(cache map[uint]io.Writer) TreeBuilder {
 	tb.cache = cache
+	return tb
+}
+
+func (tb TreeBuilder) WithMinHeight(minHeight uint) TreeBuilder {
+	tb.minHeight = minHeight
 	return tb
 }
 

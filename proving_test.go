@@ -38,8 +38,7 @@ func TestGenerateProof(t *testing.T) {
 		r.NoError(err)
 	}
 	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
-	root, err := tree.Root()
-	r.NoError(err)
+	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
 	r.Len(sliceReadWriters[0].slice, 8)
@@ -47,11 +46,11 @@ func TestGenerateProof(t *testing.T) {
 	r.Len(sliceReadWriters[2].slice, 2)
 
 	var proof, expectedProof nodes
+	var err error
 	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
 	r.NoError(err)
 
-	expectedProof, err = tree.Proof()
-	r.NoError(err)
+	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof, "actual")
 }
 
@@ -87,8 +86,7 @@ func BenchmarkGenerateProof(b *testing.B) {
 	r.NoError(err)
 	b.Log(time.Since(start))
 
-	expectedProof, err = tree.Proof()
-	r.NoError(err)
+	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof, "actual")
 
 	/*
@@ -113,8 +111,7 @@ func TestGenerateProofWithRoot(t *testing.T) {
 		r.NoError(err)
 	}
 	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
-	root, err := tree.Root()
-	r.NoError(err)
+	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
 	r.Len(sliceReadWriters[0].slice, 8)
@@ -124,11 +121,11 @@ func TestGenerateProofWithRoot(t *testing.T) {
 	r.Equal(expectedRoot, sliceReadWriters[3].slice[0])
 
 	var proof, expectedProof nodes
+	var err error
 	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
 	r.NoError(err)
 
-	expectedProof, err = tree.Proof()
-	r.NoError(err)
+	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof, "actual")
 }
 
@@ -146,18 +143,17 @@ func TestGenerateProofWithoutCache(t *testing.T) {
 		r.NoError(err)
 	}
 	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
-	root, err := tree.Root()
-	r.NoError(err)
+	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
 	r.Len(sliceReadWriters[0].slice, 8)
 
 	var proof, expectedProof nodes
+	var err error
 	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
 	r.NoError(err)
 
-	expectedProof, err = tree.Proof()
-	r.NoError(err)
+	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof, "actual")
 }
 
@@ -176,19 +172,18 @@ func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 		r.NoError(err)
 	}
 	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
-	root, err := tree.Root()
-	r.NoError(err)
+	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
 	r.Len(sliceReadWriters[0].slice, 8)
 	r.Len(sliceReadWriters[2].slice, 2)
 
 	var proof, expectedProof nodes
+	var err error
 	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
 	r.NoError(err)
 
-	expectedProof, err = tree.Proof()
-	r.NoError(err)
+	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof)
 }
 func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
@@ -206,20 +201,109 @@ func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 		r.NoError(err)
 	}
 	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
-	root, err := tree.Root()
-	r.NoError(err)
+	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
 	r.Len(sliceReadWriters[0].slice, 8)
 	r.Len(sliceReadWriters[1].slice, 4)
 
 	var proof, expectedProof nodes
+	var err error
 	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
 	r.NoError(err)
 
-	expectedProof, err = tree.Proof()
-	r.NoError(err)
+	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof)
+}
+
+func TestGenerateProofUnbalanced(t *testing.T) {
+	r := require.New(t)
+	sliceReadWriters := make(map[uint]*sliceReadWriter)
+	sliceReadWriters[0] = &sliceReadWriter{}
+	sliceReadWriters[1] = &sliceReadWriter{}
+	sliceReadWriters[2] = &sliceReadWriter{}
+	leavesToProve := []uint64{0, 4, 6}
+
+	tree := NewTreeBuilder(GetSha256Parent).
+		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+		WithLeavesToProve(leavesToProve).
+		Build()
+	for i := uint64(0); i < 7; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		r.NoError(err)
+	}
+
+	r.Len(sliceReadWriters[0].slice, 7)
+	r.Len(sliceReadWriters[1].slice, 3)
+	r.Len(sliceReadWriters[2].slice, 1)
+
+	var proof, expectedProof nodes
+	var err error
+	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	r.NoError(err)
+
+	expectedProof = tree.Proof()
+	r.EqualValues(expectedProof, proof, "actual")
+}
+
+func TestGenerateProofUnbalanced2(t *testing.T) {
+	r := require.New(t)
+	sliceReadWriters := make(map[uint]*sliceReadWriter)
+	sliceReadWriters[0] = &sliceReadWriter{}
+	sliceReadWriters[1] = &sliceReadWriter{}
+	sliceReadWriters[2] = &sliceReadWriter{}
+	leavesToProve := []uint64{0, 4}
+
+	tree := NewTreeBuilder(GetSha256Parent).
+		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+		WithLeavesToProve(leavesToProve).
+		Build()
+	for i := uint64(0); i < 6; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		r.NoError(err)
+	}
+
+	r.Len(sliceReadWriters[0].slice, 6)
+	r.Len(sliceReadWriters[1].slice, 3)
+	r.Len(sliceReadWriters[2].slice, 1)
+
+	var proof, expectedProof nodes
+	var err error
+	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	r.NoError(err)
+
+	expectedProof = tree.Proof()
+	r.EqualValues(expectedProof, proof, "actual")
+}
+
+func TestGenerateProofUnbalanced3(t *testing.T) {
+	r := require.New(t)
+	sliceReadWriters := make(map[uint]*sliceReadWriter)
+	sliceReadWriters[0] = &sliceReadWriter{}
+	sliceReadWriters[1] = &sliceReadWriter{}
+	sliceReadWriters[2] = &sliceReadWriter{}
+	leavesToProve := []uint64{0}
+
+	tree := NewTreeBuilder(GetSha256Parent).
+		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+		WithLeavesToProve(leavesToProve).
+		Build()
+	for i := uint64(0); i < 7; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		r.NoError(err)
+	}
+
+	r.Len(sliceReadWriters[0].slice, 7)
+	r.Len(sliceReadWriters[1].slice, 3)
+	r.Len(sliceReadWriters[2].slice, 1)
+
+	var proof, expectedProof nodes
+	var err error
+	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	r.NoError(err)
+
+	expectedProof = tree.Proof()
+	r.EqualValues(expectedProof, proof, "actual")
 }
 
 type nodes [][]byte

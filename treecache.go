@@ -1,6 +1,11 @@
 package merkle
 
-import "errors"
+import (
+	"errors"
+	"io"
+)
+
+var ErrMissingValueAtBaseLayer = errors.New("missing value at base layer, returned PaddingValue")
 
 type TreeCache struct {
 	readers map[uint]NodeReader
@@ -30,6 +35,9 @@ func (c *TreeCache) GetNode(nodePos position) ([]byte, error) {
 	}
 
 	err := reader.Seek(nodePos.index)
+	if err == io.EOF {
+		return c.calcNode(nodePos)
+	}
 	if err != nil {
 		return nil, errors.New("while seeking in cache: " + err.Error() + nodePos.String())
 	}
@@ -45,20 +53,40 @@ func (c *TreeCache) calcNode(nodePos position) ([]byte, error) {
 	var found bool
 	var reader NodeReader
 
+	if nodePos.height == 0 {
+		return PaddingValue.value, ErrMissingValueAtBaseLayer
+	}
+
 	// Find the next cached layer below the current one.
-	for subtreeStart = nodePos.leftChild(); !found; subtreeStart = subtreeStart.leftChild() {
+	for subtreeStart = nodePos; !found; {
+		subtreeStart = subtreeStart.leftChild()
 		reader, found = c.readers[subtreeStart.height]
 	}
 
 	// Prepare the reader for traversing the subtree.
 	err := reader.Seek(subtreeStart.index)
+	if err == io.EOF {
+		return PaddingValue.value, nil
+	}
 	if err != nil {
 		return nil, errors.New("while seeking in cache: " + err.Error() + subtreeStart.String())
 	}
 
-	// Traverse the subtree.
+	var paddingValue []byte
 	width := uint64(1) << (nodePos.height - subtreeStart.height)
-	_, currentVal, err := traverseSubtree(reader, width, c.hash, nil)
+	if reader.Width() < subtreeStart.index + width {
+		paddingPos := position{
+			index:  reader.Width(),
+			height: subtreeStart.height,
+		}
+		paddingValue, err = c.calcNode(paddingPos)
+		if err != nil && err != ErrMissingValueAtBaseLayer {
+			return nil, errors.New("while calculating ephemeral node: " + err.Error() + paddingPos.String())
+		}
+	}
+
+	// Traverse the subtree.
+	currentVal, _, err := traverseSubtree(reader, width, c.hash, nil, paddingValue)
 	if err != nil {
 		return nil, errors.New("while traversing subtree for root: " + err.Error())
 	}
