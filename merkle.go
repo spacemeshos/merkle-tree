@@ -7,10 +7,13 @@ import (
 	"sort"
 )
 
+var emptyNode node
+
 // PaddingValue is used for padding unbalanced trees. This value should not be permitted at the leaf layer to
 // distinguish padding from actual members of the tree.
 var PaddingValue = node{
-	value: []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	value:        make([]byte, NodeSize), // Zero filled.
+	onProvenPath: false,
 }
 
 // node is a node in the merkle tree.
@@ -213,7 +216,7 @@ func (t *Tree) calcEphemeralParent(parking, ephemeralNode node) (parent, lChild,
 		lChild, rChild = ephemeralNode, PaddingValue
 
 	default: // both are empty
-		return ephemeralNode, ephemeralNode, ephemeralNode
+		return emptyNode, emptyNode, emptyNode
 	}
 	return t.calcParent(lChild, rChild), lChild, rChild
 }

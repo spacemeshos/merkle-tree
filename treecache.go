@@ -39,7 +39,7 @@ func (c *TreeCache) GetNode(nodePos position) ([]byte, error) {
 		return c.calcNode(nodePos)
 	}
 	if err != nil {
-		return nil, errors.New("while seeking to position "  + nodePos.String() + " in cache: " + err.Error())
+		return nil, errors.New("while seeking to position " + nodePos.String() + " in cache: " + err.Error())
 	}
 	currentVal, err := reader.ReadNext()
 	if err != nil {
@@ -54,7 +54,7 @@ func (c *TreeCache) calcNode(nodePos position) ([]byte, error) {
 	var reader NodeReader
 
 	if nodePos.height == 0 {
-		return PaddingValue.value, ErrMissingValueAtBaseLayer
+		return nil, ErrMissingValueAtBaseLayer
 	}
 
 	// Find the next cached layer below the current one.
@@ -69,18 +69,20 @@ func (c *TreeCache) calcNode(nodePos position) ([]byte, error) {
 		return PaddingValue.value, nil
 	}
 	if err != nil {
-		return nil, errors.New("while seeking to position "  + subtreeStart.String() + " in cache: " + err.Error())
+		return nil, errors.New("while seeking to position " + subtreeStart.String() + " in cache: " + err.Error())
 	}
 
 	var paddingValue []byte
 	width := uint64(1) << (nodePos.height - subtreeStart.height)
-	if reader.Width() < subtreeStart.index + width {
+	if reader.Width() < subtreeStart.index+width {
 		paddingPos := position{
 			index:  reader.Width(),
 			height: subtreeStart.height,
 		}
 		paddingValue, err = c.calcNode(paddingPos)
-		if err != nil && err != ErrMissingValueAtBaseLayer {
+		if err == ErrMissingValueAtBaseLayer {
+			paddingValue = PaddingValue.value
+		} else if err != nil {
 			return nil, errors.New("while calculating ephemeral node at position " + paddingPos.String() + ": " + err.Error())
 		}
 	}

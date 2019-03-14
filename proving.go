@@ -103,8 +103,8 @@ func calcSubtreeProof(cache *TreeCache, hash HashFunc, leavesToProve []uint64, s
 	return additionalProof, err
 }
 
-func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc, leavesToProve []uint64, paddingValue []byte) (
-	[]byte, [][]byte, error) {
+func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc, leavesToProve []uint64,
+	externalPadding []byte) (root []byte, proof [][]byte, err error) {
 
 	t := NewTreeBuilder(hash).
 		WithLeavesToProve(leavesToProve).
@@ -114,11 +114,11 @@ func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc, leavesT
 		leaf, err := leafReader.ReadNext()
 		if err == io.EOF {
 			// Add external padding if provided.
-			if paddingValue == nil {
+			if externalPadding == nil {
 				break
 			}
-			leaf = paddingValue
-			paddingValue = nil
+			leaf = externalPadding
+			externalPadding = nil
 		} else if err != nil {
 			return nil, nil, errors.New("while reading a leaf: " + err.Error())
 		}
@@ -127,7 +127,7 @@ func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc, leavesT
 			return nil, nil, errors.New("while adding a leaf: " + err.Error())
 		}
 	}
-	root, proof := t.RootAndProof()
+	root, proof = t.RootAndProof()
 	return root, proof, nil
 }
 
