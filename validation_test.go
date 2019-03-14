@@ -218,3 +218,38 @@ func BenchmarkValidatePartialTree(b *testing.B) {
 	| =0000==0100= 0200  0300 =0400=.0500. 0600  0700  |
 	***************************************************/
 }
+
+func TestValidatePartialTreeErrors(t *testing.T) {
+	req := require.New(t)
+
+	leafIndices := []uint64{3, 5}
+	leaves := [][]byte{NewNodeFromUint64(3)}
+	proof := [][]byte{
+		NewNodeFromUint64(0),
+		NewNodeFromUint64(0),
+		NewNodeFromUint64(0),
+	}
+	root, _ := NewNodeFromHex("2657509b700c67b205c5196ee9a231e0fe567f1dae4a15bb52c0de813d65677a")
+	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
+	req.Error(err)
+	req.False(valid, "Proof should be valid, but isn't")
+
+	valid, err = ValidatePartialTree([]uint64{}, [][]byte{}, proof, root, GetSha256Parent)
+	req.Error(err)
+	req.False(valid, "Proof should be valid, but isn't")
+}
+
+func TestValidator_calcRoot(t *testing.T) {
+	r := require.New(t)
+	v := validator{
+		leaves:     &leafIterator{},
+		proofNodes: nil,
+		hash:       nil,
+	}
+
+	root, err := v.calcRoot(0)
+
+	r.Error(err)
+	r.Equal("no more items", err.Error())
+	r.Nil(root)
+}

@@ -8,15 +8,6 @@ type positionsIterator struct {
 	s []uint64
 }
 
-func (it *positionsIterator) next() (pos position, found bool) {
-	if len(it.s) == 0 {
-		return position{}, false
-	}
-	index := it.s[0]
-	it.s = it.s[1:]
-	return position{index: index}, true
-}
-
 func (it *positionsIterator) peek() (pos position, found bool) {
 	if len(it.s) == 0 {
 		return position{}, false
