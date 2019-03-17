@@ -17,19 +17,19 @@ type seekErrorReader struct{}
 
 func (seekErrorReader) Seek(index uint64) error   { return someError }
 func (seekErrorReader) ReadNext() ([]byte, error) { panic("implement me") }
-func (seekErrorReader) Width() uint64             { panic("implement me") }
+func (seekErrorReader) Width() uint64             { return 3 }
 
 type readErrorReader struct{}
 
 func (readErrorReader) Seek(index uint64) error   { return nil }
 func (readErrorReader) ReadNext() ([]byte, error) { return nil, someError }
-func (readErrorReader) Width() uint64             { panic("implement me") }
+func (readErrorReader) Width() uint64             { return 8 }
 
 type seekEOFReader struct{}
 
 func (seekEOFReader) Seek(index uint64) error   { return io.EOF }
 func (seekEOFReader) ReadNext() ([]byte, error) { panic("implement me") }
-func (seekEOFReader) Width() uint64             { panic("implement me") }
+func (seekEOFReader) Width() uint64             { return 1 }
 
 type widthReader struct{ width uint64 }
 
@@ -152,6 +152,47 @@ func TestNewTreeCache7(t *testing.T) {
 	r.Error(err)
 	r.Equal("while traversing subtree for root: while reading a leaf: some error", err.Error())
 	r.Nil(node)
+}
+
+func TestNewTreeCacheStructureSuccess(t *testing.T) {
+	r := require.New(t)
+	readers := make(map[uint]NodeReader)
+
+	readers[0] = widthReader{width: 4}
+	readers[1] = widthReader{width: 2}
+	readers[2] = widthReader{width: 1}
+	treeCache, err := NewTreeCache(readers, GetSha256Parent)
+
+	r.NoError(err)
+	r.NotNil(treeCache)
+}
+
+func TestNewTreeCacheStructureFail(t *testing.T) {
+	r := require.New(t)
+	readers := make(map[uint]NodeReader)
+
+	readers[0] = widthReader{width: 3}
+	readers[1] = widthReader{width: 2}
+	readers[2] = widthReader{width: 1}
+	treeCache, err := NewTreeCache(readers, GetSha256Parent)
+
+	r.Error(err)
+	r.Equal("reader at layer 1 has width 2 instead of 1", err.Error())
+	r.Nil(treeCache)
+}
+
+func TestNewTreeCacheStructureFail2(t *testing.T) {
+	r := require.New(t)
+	readers := make(map[uint]NodeReader)
+
+	readers[0] = widthReader{width: 4}
+	readers[1] = widthReader{width: 1}
+	readers[2] = widthReader{width: 1}
+	treeCache, err := NewTreeCache(readers, GetSha256Parent)
+
+	r.Error(err)
+	r.Equal("reader at layer 1 has width 1 instead of 2", err.Error())
+	r.Nil(treeCache)
 }
 
 func TestPosition_isAncestorOf(t *testing.T) {

@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"errors"
+	"fmt"
 	"io"
 )
 
@@ -13,15 +14,31 @@ type TreeCache struct {
 }
 
 func NewTreeCache(readers map[uint]NodeReader, hash HashFunc) (*TreeCache, error) {
-	// Verify we got the base layer.
-	if _, found := readers[0]; !found {
-		return nil, errors.New("reader for base layer must be included")
+	err := validateCacheStructure(readers)
+	if err != nil {
+		return nil, err
 	}
 
 	return &TreeCache{
 		readers: readers,
 		hash:    hash,
 	}, nil
+}
+
+func validateCacheStructure(readers map[uint]NodeReader) error {
+	// Verify we got the base layer.
+	if _, found := readers[0]; !found {
+		return errors.New("reader for base layer must be included")
+	}
+	width := readers[0].Width()
+	height := rootHeightFromWidth(width)
+	for i := uint(0); i < height; i++ {
+		if _, found := readers[i]; found && readers[i].Width() != width {
+			return fmt.Errorf("reader at layer %d has width %d instead of %d", i, readers[i].Width(), width)
+		}
+		width >>= 1
+	}
+	return nil
 }
 
 // GetNode reads the node at the requested position from the cache or calculates it if not available.
