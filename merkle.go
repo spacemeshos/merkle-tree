@@ -185,7 +185,8 @@ func (t *Tree) RootAndProof() ([]byte, [][]byte) {
 		}
 		parent, lChild, rChild := t.calcEphemeralParent(parking, ephemeralNode)
 
-		// Consider adding children to the ephemeralProof.
+		// Consider adding children to the ephemeralProof. `onProvenPath` must be explicitly set -- an empty node has
+		// the default value `false` and would never pass this point.
 		if parent.onProvenPath {
 			if !lChild.onProvenPath {
 				ephemeralProof = append(ephemeralProof, lChild.value)

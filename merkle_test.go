@@ -433,3 +433,10 @@ func TestSparseBoolStack(t *testing.T) {
 		}
 	}
 }
+
+func TestEmptyNode(t *testing.T) {
+	r := require.New(t)
+
+	r.True(emptyNode.IsEmpty())
+	r.False(emptyNode.onProvenPath)
+}

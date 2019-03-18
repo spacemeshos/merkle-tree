@@ -106,6 +106,7 @@ func calcSubtreeProof(cache *TreeCache, hash HashFunc, leavesToProve []uint64, s
 func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc, leavesToProve []uint64,
 	externalPadding []byte) (root []byte, proof [][]byte, err error) {
 
+	shouldUseExternalPadding := externalPadding != nil
 	t := NewTreeBuilder(hash).
 		WithLeavesToProve(leavesToProve).
 		WithMinHeight(rootHeightFromWidth(width)). // This ensures the correct size tree, even if padding is needed.
@@ -114,11 +115,11 @@ func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc, leavesT
 		leaf, err := leafReader.ReadNext()
 		if err == io.EOF {
 			// Add external padding if provided.
-			if externalPadding == nil {
+			if !shouldUseExternalPadding {
 				break
 			}
 			leaf = externalPadding
-			externalPadding = nil
+			shouldUseExternalPadding = false
 		} else if err != nil {
 			return nil, nil, errors.New("while reading a leaf: " + err.Error())
 		}
