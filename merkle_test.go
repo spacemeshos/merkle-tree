@@ -31,21 +31,131 @@ func TestNewTree(t *testing.T) {
 		r.NoError(err)
 	}
 	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
-	root, err := tree.Root()
-	r.NoError(err)
+	root := tree.Root()
 	r.Equal(expectedRoot, root)
 }
 
-func TestNewTreeNotPowerOf2(t *testing.T) {
+func concatLeaves(lChild, rChild []byte) []byte {
+	if len(lChild) == NodeSize {
+		lChild = lChild[:1]
+	}
+	if len(rChild) == NodeSize {
+		rChild = rChild[:1]
+	}
+	return append(lChild, rChild...)
+}
+
+func TestNewTreeWithMinHeightEqual(t *testing.T) {
+	r := require.New(t)
+	tree := NewTreeBuilder(concatLeaves).WithMinHeight(3).Build()
+	for i := uint64(0); i < 8; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		r.NoError(err)
+	}
+	expectedRoot, _ := NewNodeFromHex("0001020304050607")
+	root := tree.Root()
+	r.Equal(expectedRoot, root)
+}
+
+func TestNewTreeWithMinHeightGreater(t *testing.T) {
+	r := require.New(t)
+	tree := NewTreeBuilder(concatLeaves).WithMinHeight(4).Build()
+	for i := uint64(0); i < 8; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		r.NoError(err)
+	}
+	// An 8-leaf tree is 3 layers high, so setting a minHeight of 4 means we need to add a "padding node" to the root.
+	expectedRoot, _ := NewNodeFromHex("000102030405060700")
+	root := tree.Root()
+	r.Equal(expectedRoot, root)
+}
+
+func TestNewTreeWithMinHeightGreater2(t *testing.T) {
+	r := require.New(t)
+	tree := NewTreeBuilder(concatLeaves).WithMinHeight(5).Build()
+	for i := uint64(0); i < 8; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		r.NoError(err)
+	}
+	// An 8-leaf tree is 3 layers high, so setting a minHeight of 5 means we need to add two "padding nodes" to the root.
+	expectedRoot, _ := NewNodeFromHex("00010203040506070000")
+	root := tree.Root()
+	r.Equal(expectedRoot, root)
+}
+
+func TestNewTreeUnbalanced(t *testing.T) {
 	r := require.New(t)
 	tree := NewTree(GetSha256Parent)
 	for i := uint64(0); i < 9; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
 	}
-	root, err := tree.Root()
-	r.Error(err)
-	r.Nil(root)
+	expectedRoot, _ := NewNodeFromHex("cb71c80ee780788eedb819ec125a41e0cde57bd0955cdd3157ca363193ab5ff1")
+	root := tree.Root()
+	r.Equal(expectedRoot, root)
+}
+
+func TestNewTreeUnbalanced2(t *testing.T) {
+	r := require.New(t)
+	tree := NewTree(GetSha256Parent)
+	for i := uint64(0); i < 10; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		r.NoError(err)
+	}
+	expectedRoot, _ := NewNodeFromHex("59f32a43534fe4c4c0966421aef624267cdf65bd11f74998c60f27c7caccb12d")
+	root := tree.Root()
+	r.Equal(expectedRoot, root)
+}
+
+func TestNewTreeUnbalanced3(t *testing.T) {
+	r := require.New(t)
+	tree := NewTree(GetSha256Parent)
+	for i := uint64(0); i < 15; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		r.NoError(err)
+	}
+	expectedRoot, _ := NewNodeFromHex("b9746fb884ed07041c5cbb3bb5526e1383928e832a8385e08db995966889b5a8")
+	root := tree.Root()
+	r.Equal(expectedRoot, root)
+}
+
+func TestNewTreeUnbalancedProof(t *testing.T) {
+	r := require.New(t)
+
+	leavesToProve := []uint64{0, 4, 7}
+
+	sliceWriters := make(map[uint]*sliceReadWriter)
+	for i := uint(0); i < 5; i++ {
+		sliceWriters[i] = &sliceReadWriter{}
+	}
+	tree := NewTreeBuilder(GetSha256Parent).
+		WithLeavesToProve(leavesToProve).
+		WithCache(WritersFromSliceReadWriters(sliceWriters)).
+		Build()
+	for i := uint64(0); i < 10; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		r.NoError(err)
+	}
+	expectedRoot, _ := NewNodeFromHex("59f32a43534fe4c4c0966421aef624267cdf65bd11f74998c60f27c7caccb12d")
+	root := tree.Root()
+	r.Equal(expectedRoot, root)
+
+	r.Len(sliceWriters[0].slice, 10)
+	r.Len(sliceWriters[1].slice, 5)
+	r.Len(sliceWriters[2].slice, 2)
+	r.Len(sliceWriters[3].slice, 1)
+	r.NotEqual(sliceWriters[3].slice[0], expectedRoot)
+
+	expectedProof := make([][]byte, 5)
+	expectedProof[0], _ = NewNodeFromHex("0100000000000000000000000000000000000000000000000000000000000000")
+	expectedProof[1], _ = NewNodeFromHex("0094579cfc7b716038d416a311465309bea202baa922b224a7b08f01599642fb")
+	expectedProof[2], _ = NewNodeFromHex("0500000000000000000000000000000000000000000000000000000000000000")
+	expectedProof[3], _ = NewNodeFromHex("0600000000000000000000000000000000000000000000000000000000000000")
+	expectedProof[4], _ = NewNodeFromHex("bc68417a8495de6e22d95b980fca5a1183f29eff0e2a9b7ddde91ed5bcbea952")
+
+	var proof nodes
+	proof = tree.Proof()
+	r.EqualValues(expectedProof, proof)
 }
 
 func BenchmarkNewTree(b *testing.B) {
@@ -112,8 +222,7 @@ func TestNewProvingTree(t *testing.T) {
 		r.NoError(err)
 	}
 	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
-	root, err := tree.Root()
-	r.NoError(err)
+	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
 	expectedProof := make([][]byte, 3)
@@ -121,8 +230,7 @@ func TestNewProvingTree(t *testing.T) {
 	expectedProof[1], _ = NewNodeFromHex("fa670379e5c2212ed93ff09769622f81f98a91e1ec8fb114d607dd25220b9088")
 	expectedProof[2], _ = NewNodeFromHex("ba94ffe7edabf26ef12736f8eb5ce74d15bedb6af61444ae2906e926b1a95084")
 
-	proof, err := tree.Proof()
-	r.NoError(err)
+	proof := tree.Proof()
 	r.EqualValues(expectedProof, proof)
 
 	/***************************************************
@@ -141,8 +249,7 @@ func TestNewProvingTreeMultiProof(t *testing.T) {
 		r.NoError(err)
 	}
 	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
-	root, err := tree.Root()
-	r.NoError(err)
+	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
 	expectedProof := make([][]byte, 4)
@@ -151,8 +258,7 @@ func TestNewProvingTreeMultiProof(t *testing.T) {
 	expectedProof[2], _ = NewNodeFromHex("0500000000000000000000000000000000000000000000000000000000000000")
 	expectedProof[3], _ = NewNodeFromHex("fa670379e5c2212ed93ff09769622f81f98a91e1ec8fb114d607dd25220b9088")
 
-	proof, err := tree.Proof()
-	r.NoError(err)
+	proof := tree.Proof()
 	r.EqualValues(expectedProof, proof)
 
 	/***************************************************
@@ -171,8 +277,7 @@ func TestNewProvingTreeMultiProof2(t *testing.T) {
 		r.NoError(err)
 	}
 	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
-	root, err := tree.Root()
-	r.NoError(err)
+	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
 	expectedProof := make([][]byte, 3)
@@ -180,8 +285,7 @@ func TestNewProvingTreeMultiProof2(t *testing.T) {
 	expectedProof[1], _ = NewNodeFromHex("0500000000000000000000000000000000000000000000000000000000000000")
 	expectedProof[2], _ = NewNodeFromHex("fa670379e5c2212ed93ff09769622f81f98a91e1ec8fb114d607dd25220b9088")
 
-	proof, err := tree.Proof()
-	r.NoError(err)
+	proof := tree.Proof()
 	r.EqualValues(expectedProof, proof)
 
 	/***************************************************
@@ -248,8 +352,7 @@ func TestNewCachingTree(t *testing.T) {
 		r.NoError(err)
 	}
 	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
-	root, err := tree.Root()
-	r.NoError(err)
+	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
 	r.Len(sliceWriters[0].slice, 8)
@@ -329,4 +432,11 @@ func TestSparseBoolStack(t *testing.T) {
 			r.False(roundsTrue.Pop())
 		}
 	}
+}
+
+func TestEmptyNode(t *testing.T) {
+	r := require.New(t)
+
+	r.True(emptyNode.IsEmpty())
+	r.False(emptyNode.onProvenPath)
 }

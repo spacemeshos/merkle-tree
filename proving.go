@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"errors"
+	"io"
 )
 
 const NodeSize = 32
@@ -94,7 +95,7 @@ func calcSubtreeProof(cache *TreeCache, hash HashFunc, leavesToProve []uint64, s
 		return nil, errors.New("while preparing to traverse subtree: " + err.Error())
 	}
 
-	additionalProof, _, err := traverseSubtree(reader, width, hash, relativeLeavesToProve)
+	_, additionalProof, err := traverseSubtree(reader, width, hash, relativeLeavesToProve, nil)
 	if err != nil {
 		return nil, errors.New("while traversing subtree: " + err.Error())
 	}
@@ -102,13 +103,24 @@ func calcSubtreeProof(cache *TreeCache, hash HashFunc, leavesToProve []uint64, s
 	return additionalProof, err
 }
 
-func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc,
-	leavesToProve []uint64) ([][]byte, []byte, error) {
+func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc, leavesToProve []uint64,
+	externalPadding []byte) (root []byte, proof [][]byte, err error) {
 
-	t := NewProvingTree(hash, leavesToProve)
+	shouldUseExternalPadding := externalPadding != nil
+	t := NewTreeBuilder(hash).
+		WithLeavesToProve(leavesToProve).
+		WithMinHeight(rootHeightFromWidth(width)). // This ensures the correct size tree, even if padding is needed.
+		Build()
 	for i := uint64(0); i < width; i++ {
 		leaf, err := leafReader.ReadNext()
-		if err != nil {
+		if err == io.EOF {
+			// Add external padding if provided.
+			if !shouldUseExternalPadding {
+				break
+			}
+			leaf = externalPadding
+			shouldUseExternalPadding = false
+		} else if err != nil {
 			return nil, nil, errors.New("while reading a leaf: " + err.Error())
 		}
 		err = t.AddLeaf(leaf)
@@ -116,15 +128,8 @@ func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc,
 			return nil, nil, errors.New("while adding a leaf: " + err.Error())
 		}
 	}
-	proof, err := t.Proof()
-	if err != nil {
-		return nil, nil, errors.New("while fetching the proof: " + err.Error())
-	}
-	root, err := t.Root()
-	if err != nil {
-		return nil, nil, errors.New("while fetching the root: " + err.Error())
-	}
-	return proof, root, nil
+	root, proof = t.RootAndProof()
+	return root, proof, nil
 }
 
 type positionsStack struct {

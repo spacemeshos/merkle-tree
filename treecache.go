@@ -1,6 +1,12 @@
 package merkle
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+	"io"
+)
+
+var ErrMissingValueAtBaseLayer = errors.New("missing value at base layer, returned PaddingValue")
 
 type TreeCache struct {
 	readers map[uint]NodeReader
@@ -8,9 +14,9 @@ type TreeCache struct {
 }
 
 func NewTreeCache(readers map[uint]NodeReader, hash HashFunc) (*TreeCache, error) {
-	// Verify we got the base layer.
-	if _, found := readers[0]; !found {
-		return nil, errors.New("reader for base layer must be included")
+	err := validateCacheStructure(readers)
+	if err != nil {
+		return nil, err
 	}
 
 	return &TreeCache{
@@ -19,19 +25,38 @@ func NewTreeCache(readers map[uint]NodeReader, hash HashFunc) (*TreeCache, error
 	}, nil
 }
 
+func validateCacheStructure(readers map[uint]NodeReader) error {
+	// Verify we got the base layer.
+	if _, found := readers[0]; !found {
+		return errors.New("reader for base layer must be included")
+	}
+	width := readers[0].Width()
+	height := rootHeightFromWidth(width)
+	for i := uint(0); i < height; i++ {
+		if _, found := readers[i]; found && readers[i].Width() != width {
+			return fmt.Errorf("reader at layer %d has width %d instead of %d", i, readers[i].Width(), width)
+		}
+		width >>= 1
+	}
+	return nil
+}
+
 // GetNode reads the node at the requested position from the cache or calculates it if not available.
 func (c *TreeCache) GetNode(nodePos position) ([]byte, error) {
 	// Get the cache reader for the requested node's layer.
 	reader, found := c.readers[nodePos.height]
 
-	// If the cache wan't found, we calculate the minimal subtree that will get us the required node.
+	// If the cache wasn't found, we calculate the minimal subtree that will get us the required node.
 	if !found {
 		return c.calcNode(nodePos)
 	}
 
 	err := reader.Seek(nodePos.index)
+	if err == io.EOF {
+		return c.calcNode(nodePos)
+	}
 	if err != nil {
-		return nil, errors.New("while seeking in cache: " + err.Error() + nodePos.String())
+		return nil, errors.New("while seeking to position " + nodePos.String() + " in cache: " + err.Error())
 	}
 	currentVal, err := reader.ReadNext()
 	if err != nil {
@@ -45,20 +70,42 @@ func (c *TreeCache) calcNode(nodePos position) ([]byte, error) {
 	var found bool
 	var reader NodeReader
 
+	if nodePos.height == 0 {
+		return nil, ErrMissingValueAtBaseLayer
+	}
+
 	// Find the next cached layer below the current one.
-	for subtreeStart = nodePos.leftChild(); !found; subtreeStart = subtreeStart.leftChild() {
+	for subtreeStart = nodePos; !found; {
+		subtreeStart = subtreeStart.leftChild()
 		reader, found = c.readers[subtreeStart.height]
 	}
 
 	// Prepare the reader for traversing the subtree.
 	err := reader.Seek(subtreeStart.index)
+	if err == io.EOF {
+		return PaddingValue.value, nil
+	}
 	if err != nil {
-		return nil, errors.New("while seeking in cache: " + err.Error() + subtreeStart.String())
+		return nil, errors.New("while seeking to position " + subtreeStart.String() + " in cache: " + err.Error())
+	}
+
+	var paddingValue []byte
+	width := uint64(1) << (nodePos.height - subtreeStart.height)
+	if reader.Width() < subtreeStart.index+width {
+		paddingPos := position{
+			index:  reader.Width(),
+			height: subtreeStart.height,
+		}
+		paddingValue, err = c.calcNode(paddingPos)
+		if err == ErrMissingValueAtBaseLayer {
+			paddingValue = PaddingValue.value
+		} else if err != nil {
+			return nil, errors.New("while calculating ephemeral node at position " + paddingPos.String() + ": " + err.Error())
+		}
 	}
 
 	// Traverse the subtree.
-	width := uint64(1) << (nodePos.height - subtreeStart.height)
-	_, currentVal, err := traverseSubtree(reader, width, c.hash, nil)
+	currentVal, _, err := traverseSubtree(reader, width, c.hash, nil, paddingValue)
 	if err != nil {
 		return nil, errors.New("while traversing subtree for root: " + err.Error())
 	}
