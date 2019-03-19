@@ -26,7 +26,7 @@ func TestValidatePartialTreeForRealz(t *testing.T) {
 
 	leafIndices := []uint64{4}
 	leaves := [][]byte{NewNodeFromUint64(4)}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(leafIndices)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -53,7 +53,7 @@ func TestValidatePartialTreeMulti(t *testing.T) {
 		NewNodeFromUint64(1),
 		NewNodeFromUint64(4),
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(leafIndices)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -81,7 +81,7 @@ func TestValidatePartialTreeMulti2(t *testing.T) {
 		NewNodeFromUint64(1),
 		NewNodeFromUint64(4),
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(leafIndices)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -109,7 +109,7 @@ func TestValidatePartialTreeMultiUnbalanced(t *testing.T) {
 		NewNodeFromUint64(4),
 		NewNodeFromUint64(7),
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(leafIndices)
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -140,7 +140,7 @@ func TestValidatePartialTreeMultiUnbalanced2(t *testing.T) {
 		NewNodeFromUint64(7),
 		NewNodeFromUint64(9),
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(leafIndices)
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -168,7 +168,7 @@ func TestValidatePartialTreeUnbalanced(t *testing.T) {
 	leaves := [][]byte{
 		NewNodeFromUint64(9),
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(leafIndices)
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -197,7 +197,7 @@ func BenchmarkValidatePartialTree(b *testing.B) {
 	for _, i := range leafIndices {
 		leaves = append(leaves, NewNodeFromUint64(i))
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(leafIndices)
 	for i := uint64(0); i < 1<<23; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)

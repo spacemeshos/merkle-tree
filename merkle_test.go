@@ -3,9 +3,8 @@ package merkle
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
+	"github.com/spacemeshos/merkle-tree/cache"
 	"github.com/stretchr/testify/require"
-	"io"
 	"testing"
 	"time"
 )
@@ -25,7 +24,7 @@ import (
 
 func TestNewTree(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree(GetSha256Parent)
+	tree := NewTree()
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -47,7 +46,7 @@ func concatLeaves(lChild, rChild []byte) []byte {
 
 func TestNewTreeWithMinHeightEqual(t *testing.T) {
 	r := require.New(t)
-	tree := NewTreeBuilder(concatLeaves).WithMinHeight(3).Build()
+	tree := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(3).Build()
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -59,7 +58,7 @@ func TestNewTreeWithMinHeightEqual(t *testing.T) {
 
 func TestNewTreeWithMinHeightGreater(t *testing.T) {
 	r := require.New(t)
-	tree := NewTreeBuilder(concatLeaves).WithMinHeight(4).Build()
+	tree := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(4).Build()
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -72,7 +71,7 @@ func TestNewTreeWithMinHeightGreater(t *testing.T) {
 
 func TestNewTreeWithMinHeightGreater2(t *testing.T) {
 	r := require.New(t)
-	tree := NewTreeBuilder(concatLeaves).WithMinHeight(5).Build()
+	tree := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(5).Build()
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -85,7 +84,7 @@ func TestNewTreeWithMinHeightGreater2(t *testing.T) {
 
 func TestNewTreeUnbalanced(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree(GetSha256Parent)
+	tree := NewTree()
 	for i := uint64(0); i < 9; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -97,7 +96,7 @@ func TestNewTreeUnbalanced(t *testing.T) {
 
 func TestNewTreeUnbalanced2(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree(GetSha256Parent)
+	tree := NewTree()
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -109,7 +108,7 @@ func TestNewTreeUnbalanced2(t *testing.T) {
 
 func TestNewTreeUnbalanced3(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree(GetSha256Parent)
+	tree := NewTree()
 	for i := uint64(0); i < 15; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -124,13 +123,11 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 
 	leavesToProve := []uint64{0, 4, 7}
 
-	sliceWriters := make(map[uint]*sliceReadWriter)
-	for i := uint(0); i < 5; i++ {
-		sliceWriters[i] = &sliceReadWriter{}
-	}
-	tree := NewTreeBuilder(GetSha256Parent).
+	treeCache := cache.NewCacheWithLayerFactories([]cache.LayerFactory{cache.MakeMemoryReadWriterFactory(0)})
+
+	tree := NewTreeBuilder().
 		WithLeavesToProve(leavesToProve).
-		WithCache(WritersFromSliceReadWriters(sliceWriters)).
+		WithCache(treeCache).
 		Build()
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
@@ -140,11 +137,14 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Len(sliceWriters[0].slice, 10)
-	r.Len(sliceWriters[1].slice, 5)
-	r.Len(sliceWriters[2].slice, 2)
-	r.Len(sliceWriters[3].slice, 1)
-	r.NotEqual(sliceWriters[3].slice[0], expectedRoot)
+	r.Equal(uint64(10), treeCache.GetLayerReader(0).Width())
+	r.Equal(uint64(5), treeCache.GetLayerReader(1).Width())
+	r.Equal(uint64(2), treeCache.GetLayerReader(2).Width())
+	r.Equal(uint64(1), treeCache.GetLayerReader(3).Width())
+
+	cacheRoot, err := treeCache.GetLayerReader(3).ReadNext()
+	r.NoError(err)
+	r.NotEqual(cacheRoot, expectedRoot)
 
 	expectedProof := make([][]byte, 5)
 	expectedProof[0], _ = NewNodeFromHex("0100000000000000000000000000000000000000000000000000000000000000")
@@ -160,7 +160,7 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 
 func BenchmarkNewTree(b *testing.B) {
 	var size uint64 = 1 << 28
-	tree := NewTree(GetSha256Parent)
+	tree := NewTree()
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -176,7 +176,7 @@ func BenchmarkNewTree(b *testing.B) {
 func BenchmarkNewTreeSmall(b *testing.B) {
 	var size uint64 = 1 << 23
 	start := time.Now()
-	tree := NewTree(GetSha256Parent)
+	tree := NewTree()
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -188,10 +188,7 @@ func BenchmarkNewTreeSmall(b *testing.B) {
 
 func BenchmarkNewTreeNoHashing(b *testing.B) {
 	var size uint64 = 1 << 28
-	tree := NewTree(func(leftChild, rightChild []byte) []byte {
-		arr := [32]byte{}
-		return arr[:]
-	})
+	tree := NewTree()
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -216,7 +213,7 @@ func BenchmarkNewTreeNoHashing(b *testing.B) {
 
 func TestNewProvingTree(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree(GetSha256Parent, []uint64{4})
+	tree := NewProvingTree([]uint64{4})
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -243,7 +240,7 @@ func TestNewProvingTree(t *testing.T) {
 
 func TestNewProvingTreeMultiProof(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree(GetSha256Parent, []uint64{1, 4})
+	tree := NewProvingTree([]uint64{1, 4})
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -271,7 +268,7 @@ func TestNewProvingTreeMultiProof(t *testing.T) {
 
 func TestNewProvingTreeMultiProof2(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree(GetSha256Parent, []uint64{0, 1, 4})
+	tree := NewProvingTree([]uint64{0, 1, 4})
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -308,45 +305,12 @@ func NewNodeFromHex(s string) ([]byte, error) {
 
 // Caching tests:
 
-type sliceReadWriter struct {
-	slice    [][]byte
-	position uint64
-}
-
-func (s *sliceReadWriter) Width() uint64 {
-	return uint64(len(s.slice))
-}
-
-func (s *sliceReadWriter) Seek(index uint64) error {
-	if index >= uint64(len(s.slice)) {
-		return io.EOF
-	}
-	s.position = index
-	return nil
-}
-
-func (s *sliceReadWriter) ReadNext() ([]byte, error) {
-	if s.position >= uint64(len(s.slice)) {
-		return nil, io.EOF
-	}
-	value := make([]byte, NodeSize)
-	copy(value, s.slice[s.position])
-	s.position++
-	return value, nil
-}
-
-func (s *sliceReadWriter) Write(p []byte) (n int, err error) {
-	s.slice = append(s.slice, p)
-	return len(p), nil
-}
-
 func TestNewCachingTree(t *testing.T) {
 	r := require.New(t)
-	sliceWriters := make(map[uint]*sliceReadWriter)
-	for i := uint(0); i < 4; i++ {
-		sliceWriters[i] = &sliceReadWriter{}
-	}
-	tree := NewCachingTree(GetSha256Parent, WritersFromSliceReadWriters(sliceWriters))
+	treeCache := cache.NewCacheWithLayerFactories(
+		[]cache.LayerFactory{cache.MakeMemoryReadWriterFactory(0)},
+	)
+	tree := NewCachingTree(treeCache)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -355,49 +319,24 @@ func TestNewCachingTree(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Len(sliceWriters[0].slice, 8)
-	r.Len(sliceWriters[1].slice, 4)
-	r.Len(sliceWriters[2].slice, 2)
-	r.Len(sliceWriters[3].slice, 1)
-	r.Equal(sliceWriters[3].slice[0], expectedRoot)
+	r.Equal(uint64(8), treeCache.GetLayerReader(0).Width())
+	r.Equal(uint64(4), treeCache.GetLayerReader(1).Width())
+	r.Equal(uint64(2), treeCache.GetLayerReader(2).Width())
+	r.Equal(uint64(1), treeCache.GetLayerReader(3).Width())
+	cacheRoot, err := treeCache.GetLayerReader(3).ReadNext()
+	r.NoError(err)
+	r.Equal(cacheRoot, expectedRoot)
 
-	// printCache(0, 3, sliceWriters)
-}
-
-func printCache(bottom, top int, sliceWriters map[uint]*sliceReadWriter) {
-	for i := top; i >= bottom; i-- {
-		print("| ")
-		for _, n := range sliceWriters[uint(i)].slice {
-			printSpaces(numSpaces(i))
-			fmt.Print(hex.EncodeToString(n[:2]))
-			printSpaces(numSpaces(i))
-		}
-		println(" |")
-	}
-}
-
-func numSpaces(n int) int {
-	res := 1
-	for i := 0; i < n; i++ {
-		res += 3 * (1 << uint(i))
-	}
-	return res
-}
-
-func printSpaces(n int) {
-	for i := 0; i < n; i++ {
-		print(" ")
-	}
+	//treeCache.Print(0 , 3)
 }
 
 func BenchmarkNewCachingTreeSmall(b *testing.B) {
 	var size uint64 = 1 << 23
-	cache := make(map[uint]io.Writer)
-	for i := uint(7); i < 23; i++ {
-		cache[i] = &sliceReadWriter{}
-	}
+	treeCache := cache.NewCacheWithLayerFactories(
+		[]cache.LayerFactory{cache.MakeMemoryReadWriterFactory(7)},
+	)
 	start := time.Now()
-	tree := NewCachingTree(GetSha256Parent, cache)
+	tree := NewCachingTree(treeCache)
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
