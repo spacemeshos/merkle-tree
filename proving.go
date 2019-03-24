@@ -16,18 +16,14 @@ type NodeReader interface {
 
 func GenerateProof(
 	provenLeafIndices []uint64,
-	treeCache *cache.Cache,
+	treeCache *cache.Reader,
 ) ([][]byte, error) {
-
-	if err := treeCache.ValidateStructure(); err != nil {
-		return nil, err
-	}
 
 	var proof [][]byte
 
 	provenLeafIndexIt := &positionsIterator{s: provenLeafIndices}
 	skipPositions := &positionsStack{}
-	rootHeight := cache.RootHeightFromWidth(treeCache.LeafReader().Width())
+	rootHeight := cache.RootHeightFromWidth(treeCache.GetLayerReader(0).Width())
 
 	for { // Process proven leaves:
 
@@ -78,7 +74,7 @@ func GenerateProof(
 	return proof, nil
 }
 
-func calcSubtreeProof(c *cache.Cache, leavesToProve []uint64, subtreeStart position, width uint64) (
+func calcSubtreeProof(c *cache.Reader, leavesToProve []uint64, subtreeStart position, width uint64) (
 	[][]byte, error) {
 
 	// By subtracting subtreeStart.index we get the index relative to the subtree.
@@ -88,13 +84,13 @@ func calcSubtreeProof(c *cache.Cache, leavesToProve []uint64, subtreeStart posit
 	}
 
 	// Prepare leaf reader to read subtree leaves.
-	reader := c.LeafReader()
+	reader := c.GetLayerReader(0)
 	err := reader.Seek(subtreeStart.index)
 	if err != nil {
 		return nil, errors.New("while preparing to traverse subtree: " + err.Error())
 	}
 
-	_, additionalProof, err := traverseSubtree(reader, width, c.Hash, relativeLeavesToProve, nil)
+	_, additionalProof, err := traverseSubtree(reader, width, c.GetHashFunc(), relativeLeavesToProve, nil)
 	if err != nil {
 		return nil, errors.New("while traversing subtree: " + err.Error())
 	}
@@ -133,7 +129,7 @@ func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc, leavesT
 }
 
 // GetNode reads the node at the requested position from the cache or calculates it if not available.
-func GetNode(c *cache.Cache, nodePos position) ([]byte, error) {
+func GetNode(c *cache.Reader, nodePos position) ([]byte, error) {
 	// Get the cache reader for the requested node's layer.
 	reader := c.GetLayerReader(nodePos.height)
 
@@ -156,7 +152,7 @@ func GetNode(c *cache.Cache, nodePos position) ([]byte, error) {
 	return currentVal, nil
 }
 
-func calcNode(c *cache.Cache, nodePos position) ([]byte, error) {
+func calcNode(c *cache.Reader, nodePos position) ([]byte, error) {
 	var subtreeStart position
 	var reader cache.LayerReader
 
@@ -195,7 +191,7 @@ func calcNode(c *cache.Cache, nodePos position) ([]byte, error) {
 	}
 
 	// Traverse the subtree.
-	currentVal, _, err := traverseSubtree(reader, width, c.Hash, nil, paddingValue)
+	currentVal, _, err := traverseSubtree(reader, width, c.GetHashFunc(), nil, paddingValue)
 	if err != nil {
 		return nil, errors.New("while traversing subtree for root: " + err.Error())
 	}
@@ -205,7 +201,7 @@ func calcNode(c *cache.Cache, nodePos position) ([]byte, error) {
 // subtreeDefinition returns the definition (firstLeaf and root positions, width) for the minimal subtree whose
 // base layer includes p and where the root is on a cached layer. If no cached layer exists above the base layer, the
 // subtree will reach the root of the original tree.
-func subtreeDefinition(c *cache.Cache, p position) (root, firstLeaf position, width uint64) {
+func subtreeDefinition(c *cache.Reader, p position) (root, firstLeaf position, width uint64) {
 	// maxRootHeight represents the max height of the tree, based on the width of base layer. This is used to prevent an
 	// infinite loop.
 	maxRootHeight := cache.RootHeightFromWidth(c.GetLayerReader(p.height).Width())

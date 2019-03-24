@@ -5,7 +5,7 @@ import "github.com/spacemeshos/merkle-tree/cache"
 type TreeBuilder struct {
 	hash           HashFunc
 	leavesToProves []uint64
-	cache          *cache.Cache
+	cache          *cache.Writer
 	minHeight      uint
 }
 
@@ -18,9 +18,9 @@ func (tb TreeBuilder) Build() *Tree {
 		tb.hash = GetSha256Parent
 	}
 	if tb.cache == nil {
-		tb.cache = &cache.Cache{}
+		tb.cache = cache.NewWriterWithLayerFactories(nil)
 	}
-	tb.cache.Hash = tb.hash
+	tb.cache.SetHash(tb.hash)
 	return &Tree{
 		baseLayer:     newLayer(0, tb.cache.GetLayerWriter(0)),
 		hash:          tb.hash,
@@ -40,7 +40,7 @@ func (tb TreeBuilder) WithLeavesToProve(leavesToProves []uint64) TreeBuilder {
 	return tb
 }
 
-func (tb TreeBuilder) WithCache(treeCache *cache.Cache) TreeBuilder {
+func (tb TreeBuilder) WithCache(treeCache *cache.Writer) TreeBuilder {
 	tb.cache = treeCache
 	return tb
 }
@@ -58,6 +58,6 @@ func NewProvingTree(leavesToProves []uint64) *Tree {
 	return NewTreeBuilder().WithLeavesToProve(leavesToProves).Build()
 }
 
-func NewCachingTree(treeCache *cache.Cache) *Tree {
+func NewCachingTree(treeCache *cache.Writer) *Tree {
 	return NewTreeBuilder().WithCache(treeCache).Build()
 }

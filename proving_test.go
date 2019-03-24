@@ -28,7 +28,7 @@ func TestGenerateProof(t *testing.T) {
 
 	leavesToProve := []uint64{0, 4, 7}
 
-	treeCache := cache.NewCacheWithLayerFactories([]cache.LayerFactory{cache.MakeMemoryReadWriterFactory(0)})
+	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{cache.MakeMemoryReadWriterFactory(0)})
 
 	tree := NewTreeBuilder().
 		WithCache(treeCache).
@@ -42,12 +42,15 @@ func TestGenerateProof(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Equal(uint64(8), treeCache.GetLayerReader(0).Width())
-	r.Equal(uint64(4), treeCache.GetLayerReader(1).Width())
-	r.Equal(uint64(2), treeCache.GetLayerReader(2).Width())
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(8), reader.GetLayerReader(0).Width())
+	r.Equal(uint64(4), reader.GetLayerReader(1).Width())
+	r.Equal(uint64(2), reader.GetLayerReader(2).Width())
 
 	var proof, expectedProof nodes
-	proof, err := GenerateProof(leavesToProve, treeCache)
+	proof, err = GenerateProof(leavesToProve, reader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
@@ -60,7 +63,7 @@ func BenchmarkGenerateProof(b *testing.B) {
 
 	var leavesToProve []uint64
 
-	treeCache := cache.NewCacheWithLayerFactories([]cache.LayerFactory{
+	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{
 		cache.MakeMemoryReadWriterFactoryForLayers([]uint{0}),
 		cache.MakeMemoryReadWriterFactory(7),
 	})
@@ -78,13 +81,15 @@ func BenchmarkGenerateProof(b *testing.B) {
 		r.NoError(err)
 	}
 
-	r.Equal(uint64(1)<<treeHeight, treeCache.GetLayerReader(0).Width())
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(1)<<treeHeight, reader.GetLayerReader(0).Width())
 
 	var proof, expectedProof nodes
-	var err error
 
 	start := time.Now()
-	proof, err = GenerateProof(leavesToProve, treeCache)
+	proof, err = GenerateProof(leavesToProve, reader)
 	r.NoError(err)
 	b.Log(time.Since(start))
 
@@ -101,7 +106,7 @@ func TestGenerateProofWithRoot(t *testing.T) {
 
 	leavesToProve := []uint64{0, 4, 7}
 
-	treeCache := cache.NewCacheWithLayerFactories([]cache.LayerFactory{cache.MakeMemoryReadWriterFactory(0)})
+	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{cache.MakeMemoryReadWriterFactory(0)})
 
 	tree := NewTreeBuilder().
 		WithCache(treeCache).
@@ -115,16 +120,19 @@ func TestGenerateProofWithRoot(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Equal(uint64(8), treeCache.GetLayerReader(0).Width())
-	r.Equal(uint64(4), treeCache.GetLayerReader(1).Width())
-	r.Equal(uint64(2), treeCache.GetLayerReader(2).Width())
-	r.Equal(uint64(1), treeCache.GetLayerReader(3).Width())
-	cacheRoot, err := treeCache.GetLayerReader(3).ReadNext()
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(8), reader.GetLayerReader(0).Width())
+	r.Equal(uint64(4), reader.GetLayerReader(1).Width())
+	r.Equal(uint64(2), reader.GetLayerReader(2).Width())
+	r.Equal(uint64(1), reader.GetLayerReader(3).Width())
+	cacheRoot, err := reader.GetLayerReader(3).ReadNext()
 	r.NoError(err)
 	r.Equal(cacheRoot, expectedRoot)
 
 	var proof, expectedProof nodes
-	proof, err = GenerateProof(leavesToProve, treeCache)
+	proof, err = GenerateProof(leavesToProve, reader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
@@ -134,7 +142,7 @@ func TestGenerateProofWithRoot(t *testing.T) {
 func TestGenerateProofWithoutCache(t *testing.T) {
 	r := require.New(t)
 	leavesToProve := []uint64{0, 4, 7}
-	treeCache := cache.NewCacheWithLayerFactories(
+	treeCache := cache.NewWriterWithLayerFactories(
 		[]cache.LayerFactory{cache.MakeMemoryReadWriterFactoryForLayers([]uint{0})},
 	)
 	tree := NewTreeBuilder().
@@ -149,10 +157,13 @@ func TestGenerateProofWithoutCache(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Equal(uint64(8), treeCache.GetLayerReader(0).Width())
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(8), reader.GetLayerReader(0).Width())
 
 	var proof, expectedProof nodes
-	proof, err := GenerateProof(leavesToProve, treeCache)
+	proof, err = GenerateProof(leavesToProve, reader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
@@ -162,7 +173,7 @@ func TestGenerateProofWithoutCache(t *testing.T) {
 func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 	r := require.New(t)
 	leavesToProve := []uint64{0, 4, 7}
-	treeCache := cache.NewCacheWithLayerFactories(
+	treeCache := cache.NewWriterWithLayerFactories(
 		[]cache.LayerFactory{cache.MakeMemoryReadWriterFactoryForLayers([]uint{0, 2})},
 	)
 	tree := NewTreeBuilder().
@@ -177,11 +188,14 @@ func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Equal(uint64(8), treeCache.GetLayerReader(0).Width())
-	r.Equal(uint64(2), treeCache.GetLayerReader(2).Width())
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(8), reader.GetLayerReader(0).Width())
+	r.Equal(uint64(2), reader.GetLayerReader(2).Width())
 
 	var proof, expectedProof nodes
-	proof, err := GenerateProof(leavesToProve, treeCache)
+	proof, err = GenerateProof(leavesToProve, reader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
@@ -191,7 +205,7 @@ func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 	r := require.New(t)
 	leavesToProve := []uint64{0, 4, 7}
-	treeCache := cache.NewCacheWithLayerFactories(
+	treeCache := cache.NewWriterWithLayerFactories(
 		[]cache.LayerFactory{cache.MakeMemoryReadWriterFactoryForLayers([]uint{0, 1})},
 	)
 	tree := NewTreeBuilder().
@@ -206,11 +220,14 @@ func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Equal(uint64(8), treeCache.GetLayerReader(0).Width())
-	r.Equal(uint64(4), treeCache.GetLayerReader(1).Width())
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(8), reader.GetLayerReader(0).Width())
+	r.Equal(uint64(4), reader.GetLayerReader(1).Width())
 
 	var proof, expectedProof nodes
-	proof, err := GenerateProof(leavesToProve, treeCache)
+	proof, err = GenerateProof(leavesToProve, reader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
@@ -220,7 +237,7 @@ func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 func TestGenerateProofWithSingleLayerCache3(t *testing.T) {
 	r := require.New(t)
 	leavesToProve := []uint64{0}
-	treeCache := cache.NewCacheWithLayerFactories(
+	treeCache := cache.NewWriterWithLayerFactories(
 		[]cache.LayerFactory{cache.MakeMemoryReadWriterFactoryForLayers([]uint{0, 1})},
 	)
 	tree := NewTreeBuilder().
@@ -235,11 +252,14 @@ func TestGenerateProofWithSingleLayerCache3(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Equal(uint64(8), treeCache.GetLayerReader(0).Width())
-	r.Equal(uint64(4), treeCache.GetLayerReader(1).Width())
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(8), reader.GetLayerReader(0).Width())
+	r.Equal(uint64(4), reader.GetLayerReader(1).Width())
 
 	var proof, expectedProof nodes
-	proof, err := GenerateProof(leavesToProve, treeCache)
+	proof, err = GenerateProof(leavesToProve, reader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
@@ -249,7 +269,7 @@ func TestGenerateProofWithSingleLayerCache3(t *testing.T) {
 func TestGenerateProofUnbalanced(t *testing.T) {
 	r := require.New(t)
 	leavesToProve := []uint64{0, 4, 6}
-	treeCache := cache.NewCacheWithLayerFactories(
+	treeCache := cache.NewWriterWithLayerFactories(
 		[]cache.LayerFactory{cache.MakeMemoryReadWriterFactoryForLayers([]uint{0, 1, 2})},
 	)
 
@@ -262,12 +282,15 @@ func TestGenerateProofUnbalanced(t *testing.T) {
 		r.NoError(err)
 	}
 
-	r.Equal(uint64(7), treeCache.GetLayerReader(0).Width())
-	r.Equal(uint64(3), treeCache.GetLayerReader(1).Width())
-	r.Equal(uint64(1), treeCache.GetLayerReader(2).Width())
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(7), reader.GetLayerReader(0).Width())
+	r.Equal(uint64(3), reader.GetLayerReader(1).Width())
+	r.Equal(uint64(1), reader.GetLayerReader(2).Width())
 
 	var proof, expectedProof nodes
-	proof, err := GenerateProof(leavesToProve, treeCache)
+	proof, err = GenerateProof(leavesToProve, reader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
@@ -277,7 +300,7 @@ func TestGenerateProofUnbalanced(t *testing.T) {
 func TestGenerateProofUnbalanced2(t *testing.T) {
 	r := require.New(t)
 	leavesToProve := []uint64{0, 4}
-	treeCache := cache.NewCacheWithLayerFactories(
+	treeCache := cache.NewWriterWithLayerFactories(
 		[]cache.LayerFactory{cache.MakeMemoryReadWriterFactoryForLayers([]uint{0, 1, 2})},
 	)
 
@@ -290,12 +313,15 @@ func TestGenerateProofUnbalanced2(t *testing.T) {
 		r.NoError(err)
 	}
 
-	r.Equal(uint64(6), treeCache.GetLayerReader(0).Width())
-	r.Equal(uint64(3), treeCache.GetLayerReader(1).Width())
-	r.Equal(uint64(1), treeCache.GetLayerReader(2).Width())
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(6), reader.GetLayerReader(0).Width())
+	r.Equal(uint64(3), reader.GetLayerReader(1).Width())
+	r.Equal(uint64(1), reader.GetLayerReader(2).Width())
 
 	var proof, expectedProof nodes
-	proof, err := GenerateProof(leavesToProve, treeCache)
+	proof, err = GenerateProof(leavesToProve, reader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
@@ -305,7 +331,7 @@ func TestGenerateProofUnbalanced2(t *testing.T) {
 func TestGenerateProofUnbalanced3(t *testing.T) {
 	r := require.New(t)
 	leavesToProve := []uint64{0}
-	treeCache := cache.NewCacheWithLayerFactories(
+	treeCache := cache.NewWriterWithLayerFactories(
 		[]cache.LayerFactory{cache.MakeMemoryReadWriterFactoryForLayers([]uint{0, 1, 2})},
 	)
 
@@ -318,12 +344,15 @@ func TestGenerateProofUnbalanced3(t *testing.T) {
 		r.NoError(err)
 	}
 
-	r.Equal(uint64(7), treeCache.GetLayerReader(0).Width())
-	r.Equal(uint64(3), treeCache.GetLayerReader(1).Width())
-	r.Equal(uint64(1), treeCache.GetLayerReader(2).Width())
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(7), reader.GetLayerReader(0).Width())
+	r.Equal(uint64(3), reader.GetLayerReader(1).Width())
+	r.Equal(uint64(1), reader.GetLayerReader(2).Width())
 
 	var proof, expectedProof nodes
-	proof, err := GenerateProof(leavesToProve, treeCache)
+	proof, err = GenerateProof(leavesToProve, reader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
@@ -373,13 +402,16 @@ func (r widthReader) Write(p []byte) (n int, err error) { panic("implement me") 
 func TestGetNode(t *testing.T) {
 	r := require.New(t)
 
-	treeCache := cache.NewCacheWithLayerFactories(
+	treeCache := cache.NewWriterWithLayerFactories(
 		[]cache.LayerFactory{cache.MakeSpecificLayerFactory(0, seekErrorReader{})},
 	)
 	treeCache.GetLayerWriter(0) // this uses the factory to produce the layer cache
 
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
 	nodePos := position{}
-	node, err := GetNode(treeCache, nodePos)
+	node, err := GetNode(reader, nodePos)
 
 	r.Error(err)
 	r.Equal("while seeking to position <h: 0 i: 0> in cache: some error", err.Error())
@@ -389,13 +421,15 @@ func TestGetNode(t *testing.T) {
 
 func TestGetNode2(t *testing.T) {
 	r := require.New(t)
-	treeCache := cache.NewCacheWithLayerFactories([]cache.LayerFactory{
+	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{
 		cache.MakeSpecificLayerFactory(0, readErrorReader{}),
 	})
 	treeCache.GetLayerWriter(0) // this uses the factory to produce the layer cache
 
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
 	nodePos := position{}
-	node, err := GetNode(treeCache, nodePos)
+	node, err := GetNode(reader, nodePos)
 
 	r.Error(err)
 	r.Equal("while reading from cache: some error", err.Error())
@@ -404,15 +438,17 @@ func TestGetNode2(t *testing.T) {
 
 func TestGetNode3(t *testing.T) {
 	r := require.New(t)
-	treeCache := cache.NewCacheWithLayerFactories([]cache.LayerFactory{
+	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{
 		cache.MakeSpecificLayerFactory(0, seekErrorReader{}),
 		cache.MakeSpecificLayerFactory(1, seekEOFReader{}),
 	})
 	treeCache.GetLayerWriter(0) // this uses the factory to produce the layer cache
 	treeCache.GetLayerWriter(1) // this uses the factory to produce the layer cache
 
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
 	nodePos := position{height: 1}
-	node, err := GetNode(treeCache, nodePos)
+	node, err := GetNode(reader, nodePos)
 
 	r.Error(err)
 	r.Equal("while seeking to position <h: 0 i: 0> in cache: some error", err.Error())
@@ -421,7 +457,7 @@ func TestGetNode3(t *testing.T) {
 
 func TestGetNode4(t *testing.T) {
 	r := require.New(t)
-	treeCache := cache.NewCacheWithLayerFactories([]cache.LayerFactory{
+	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{
 		cache.MakeSpecificLayerFactory(0, seekErrorReader{}),
 		cache.MakeSpecificLayerFactory(1, widthReader{width: 1}),
 		cache.MakeSpecificLayerFactory(2, seekEOFReader{}),
@@ -430,8 +466,10 @@ func TestGetNode4(t *testing.T) {
 	treeCache.GetLayerWriter(1) // this uses the factory to produce the layer cache
 	treeCache.GetLayerWriter(2) // this uses the factory to produce the layer cache
 
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
 	nodePos := position{height: 2}
-	node, err := GetNode(treeCache, nodePos)
+	node, err := GetNode(reader, nodePos)
 
 	r.Error(err)
 	r.Equal("while calculating ephemeral node at position <h: 1 i: 1>: while seeking to position <h: 0 i: 10> in cache: some error", err.Error())
@@ -440,15 +478,17 @@ func TestGetNode4(t *testing.T) {
 
 func TestGetNode5(t *testing.T) {
 	r := require.New(t)
-	treeCache := cache.NewCacheWithLayerFactories([]cache.LayerFactory{
+	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{
 		cache.MakeSpecificLayerFactory(0, widthReader{width: 2}),
 		cache.MakeSpecificLayerFactory(1, seekEOFReader{}),
 	})
 	treeCache.GetLayerWriter(0) // this uses the factory to produce the layer cache
 	treeCache.GetLayerWriter(1) // this uses the factory to produce the layer cache
 
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
 	nodePos := position{height: 1}
-	node, err := GetNode(treeCache, nodePos)
+	node, err := GetNode(reader, nodePos)
 
 	r.Error(err)
 	r.Equal("while traversing subtree for root: while reading a leaf: some error", err.Error())
@@ -457,10 +497,10 @@ func TestGetNode5(t *testing.T) {
 
 func TestCache_ValidateStructure(t *testing.T) {
 	r := require.New(t)
-	treeCache := cache.NewCacheWithLayerFactories([]cache.LayerFactory{})
-	proof, err := GenerateProof(nil, treeCache)
+	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{})
+	reader, err := treeCache.GetReader()
 
 	r.Error(err)
 	r.Equal("reader for base layer must be included", err.Error())
-	r.Nil(proof)
+	r.Nil(reader)
 }

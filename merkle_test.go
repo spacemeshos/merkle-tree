@@ -123,7 +123,7 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 
 	leavesToProve := []uint64{0, 4, 7}
 
-	treeCache := cache.NewCacheWithLayerFactories([]cache.LayerFactory{cache.MakeMemoryReadWriterFactory(0)})
+	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{cache.MakeMemoryReadWriterFactory(0)})
 
 	tree := NewTreeBuilder().
 		WithLeavesToProve(leavesToProve).
@@ -137,12 +137,15 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Equal(uint64(10), treeCache.GetLayerReader(0).Width())
-	r.Equal(uint64(5), treeCache.GetLayerReader(1).Width())
-	r.Equal(uint64(2), treeCache.GetLayerReader(2).Width())
-	r.Equal(uint64(1), treeCache.GetLayerReader(3).Width())
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
 
-	cacheRoot, err := treeCache.GetLayerReader(3).ReadNext()
+	r.Equal(uint64(10), reader.GetLayerReader(0).Width())
+	r.Equal(uint64(5), reader.GetLayerReader(1).Width())
+	r.Equal(uint64(2), reader.GetLayerReader(2).Width())
+	r.Equal(uint64(1), reader.GetLayerReader(3).Width())
+
+	cacheRoot, err := reader.GetLayerReader(3).ReadNext()
 	r.NoError(err)
 	r.NotEqual(cacheRoot, expectedRoot)
 
@@ -307,7 +310,7 @@ func NewNodeFromHex(s string) ([]byte, error) {
 
 func TestNewCachingTree(t *testing.T) {
 	r := require.New(t)
-	treeCache := cache.NewCacheWithLayerFactories(
+	treeCache := cache.NewWriterWithLayerFactories(
 		[]cache.LayerFactory{cache.MakeMemoryReadWriterFactory(0)},
 	)
 	tree := NewCachingTree(treeCache)
@@ -319,11 +322,14 @@ func TestNewCachingTree(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Equal(uint64(8), treeCache.GetLayerReader(0).Width())
-	r.Equal(uint64(4), treeCache.GetLayerReader(1).Width())
-	r.Equal(uint64(2), treeCache.GetLayerReader(2).Width())
-	r.Equal(uint64(1), treeCache.GetLayerReader(3).Width())
-	cacheRoot, err := treeCache.GetLayerReader(3).ReadNext()
+	reader, err := treeCache.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(8), reader.GetLayerReader(0).Width())
+	r.Equal(uint64(4), reader.GetLayerReader(1).Width())
+	r.Equal(uint64(2), reader.GetLayerReader(2).Width())
+	r.Equal(uint64(1), reader.GetLayerReader(3).Width())
+	cacheRoot, err := reader.GetLayerReader(3).ReadNext()
 	r.NoError(err)
 	r.Equal(cacheRoot, expectedRoot)
 
@@ -332,7 +338,7 @@ func TestNewCachingTree(t *testing.T) {
 
 func BenchmarkNewCachingTreeSmall(b *testing.B) {
 	var size uint64 = 1 << 23
-	treeCache := cache.NewCacheWithLayerFactories(
+	treeCache := cache.NewWriterWithLayerFactories(
 		[]cache.LayerFactory{cache.MakeMemoryReadWriterFactory(7)},
 	)
 	start := time.Now()
