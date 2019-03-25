@@ -13,11 +13,11 @@ type Writer struct {
 	*cache
 }
 
-func NewWriter(shouldCacheLayer CachingPolicy, layerFactory LayerFactory) *Writer {
+func NewWriter(shouldCacheLayer CachingPolicy, generateLayer LayerFactory) *Writer {
 	return &Writer{
 		cache: &cache{
 			layers:           make(map[uint]LayerReadWriter),
-			layerFactory:     layerFactory,
+			generateLayer:    generateLayer,
 			shouldCacheLayer: shouldCacheLayer,
 		},
 	}
@@ -30,7 +30,7 @@ func (c *Writer) SetLayer(layerHeight uint, rw LayerReadWriter) {
 func (c *Writer) GetLayerWriter(layerHeight uint) LayerWriter {
 	layerReadWriter, found := c.layers[layerHeight]
 	if !found && c.shouldCacheLayer(layerHeight) {
-		layerReadWriter = c.layerFactory(layerHeight)
+		layerReadWriter = c.generateLayer(layerHeight)
 		c.layers[layerHeight] = layerReadWriter
 	}
 	return layerReadWriter
@@ -56,7 +56,7 @@ type cache struct {
 	layers           map[uint]LayerReadWriter
 	hash             func(lChild, rChild []byte) []byte
 	shouldCacheLayer CachingPolicy
-	layerFactory     LayerFactory
+	generateLayer    LayerFactory
 }
 
 func (c *Reader) GetLayerReader(layerHeight uint) LayerReader {
