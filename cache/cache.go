@@ -23,6 +23,10 @@ func NewWriterWithLayerFactories(layerFactories []LayerFactory) *Writer {
 	}
 }
 
+func (c *Writer) SetLayer(layer uint, rw LayerReadWriter) {
+	c.layers[layer] = rw
+}
+
 func (c *Writer) GetLayerWriter(layer uint) LayerWriter {
 	layerReadWriter, found := c.layers[layer]
 	if !found {

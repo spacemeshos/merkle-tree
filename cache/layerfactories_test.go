@@ -9,10 +9,8 @@ func TestMakeMemoryReadWriterFactory(t *testing.T) {
 	r := require.New(t)
 	treeCache := NewWriterWithLayerFactories([]LayerFactory{
 		MakeMemoryReadWriterFactory(2),
-		MakeSpecificLayerFactory(0, widthReader{width: 1}),
 	})
-	writer := treeCache.GetLayerWriter(0)
-	r.NotNil(writer)
+	treeCache.SetLayer(0, widthReader{width: 1})
 
 	cacheReader, err := treeCache.GetReader()
 	r.NoError(err)
@@ -24,7 +22,7 @@ func TestMakeMemoryReadWriterFactory(t *testing.T) {
 	reader = cacheReader.GetLayerReader(3)
 	r.Nil(reader)
 
-	writer = treeCache.GetLayerWriter(1)
+	writer := treeCache.GetLayerWriter(1)
 	r.Nil(writer)
 	writer = treeCache.GetLayerWriter(2)
 	r.NotNil(writer)
@@ -46,10 +44,8 @@ func TestMakeMemoryReadWriterFactoryForLayers(t *testing.T) {
 	r := require.New(t)
 	treeCache := NewWriterWithLayerFactories([]LayerFactory{
 		MakeMemoryReadWriterFactoryForLayers([]uint{1, 3}),
-		MakeSpecificLayerFactory(0, widthReader{width: 1}),
 	})
-	writer := treeCache.GetLayerWriter(0)
-	r.NotNil(writer)
+	treeCache.SetLayer(0, widthReader{width: 1})
 
 	cacheReader, err := treeCache.GetReader()
 	r.NoError(err)
@@ -61,7 +57,7 @@ func TestMakeMemoryReadWriterFactoryForLayers(t *testing.T) {
 	reader = cacheReader.GetLayerReader(3)
 	r.Nil(reader)
 
-	writer = treeCache.GetLayerWriter(1)
+	writer := treeCache.GetLayerWriter(1)
 	r.NotNil(writer)
 	writer = treeCache.GetLayerWriter(2)
 	r.Nil(writer)
@@ -84,10 +80,8 @@ func TestMakeSpecificLayerFactory(t *testing.T) {
 	readWriter := &SliceReadWriter{}
 	treeCache := NewWriterWithLayerFactories([]LayerFactory{
 		MakeSpecificLayerFactory(1, readWriter),
-		MakeSpecificLayerFactory(0, widthReader{width: 1}),
 	})
-	writer := treeCache.GetLayerWriter(0)
-	r.NotNil(writer)
+	treeCache.SetLayer(0, widthReader{width: 1})
 
 	cacheReader, err := treeCache.GetReader()
 	r.NoError(err)
@@ -97,7 +91,7 @@ func TestMakeSpecificLayerFactory(t *testing.T) {
 	reader = cacheReader.GetLayerReader(2)
 	r.Nil(reader)
 
-	writer = treeCache.GetLayerWriter(1)
+	writer := treeCache.GetLayerWriter(1)
 	r.Equal(readWriter, writer)
 	writer = treeCache.GetLayerWriter(2)
 	r.Nil(writer)

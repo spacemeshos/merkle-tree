@@ -402,10 +402,8 @@ func (r widthReader) Write(p []byte) (n int, err error) { panic("implement me") 
 func TestGetNode(t *testing.T) {
 	r := require.New(t)
 
-	treeCache := cache.NewWriterWithLayerFactories(
-		[]cache.LayerFactory{cache.MakeSpecificLayerFactory(0, seekErrorReader{})},
-	)
-	treeCache.GetLayerWriter(0) // this uses the factory to produce the layer cache
+	treeCache := cache.NewWriterWithLayerFactories(nil)
+	treeCache.SetLayer(0, seekErrorReader{})
 
 	reader, err := treeCache.GetReader()
 	r.NoError(err)
@@ -421,10 +419,8 @@ func TestGetNode(t *testing.T) {
 
 func TestGetNode2(t *testing.T) {
 	r := require.New(t)
-	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{
-		cache.MakeSpecificLayerFactory(0, readErrorReader{}),
-	})
-	treeCache.GetLayerWriter(0) // this uses the factory to produce the layer cache
+	treeCache := cache.NewWriterWithLayerFactories(nil)
+	treeCache.SetLayer(0, readErrorReader{})
 
 	reader, err := treeCache.GetReader()
 	r.NoError(err)
@@ -438,12 +434,9 @@ func TestGetNode2(t *testing.T) {
 
 func TestGetNode3(t *testing.T) {
 	r := require.New(t)
-	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{
-		cache.MakeSpecificLayerFactory(0, seekErrorReader{}),
-		cache.MakeSpecificLayerFactory(1, seekEOFReader{}),
-	})
-	treeCache.GetLayerWriter(0) // this uses the factory to produce the layer cache
-	treeCache.GetLayerWriter(1) // this uses the factory to produce the layer cache
+	treeCache := cache.NewWriterWithLayerFactories(nil)
+	treeCache.SetLayer(0, seekErrorReader{})
+	treeCache.SetLayer(1, seekEOFReader{})
 
 	reader, err := treeCache.GetReader()
 	r.NoError(err)
@@ -457,14 +450,10 @@ func TestGetNode3(t *testing.T) {
 
 func TestGetNode4(t *testing.T) {
 	r := require.New(t)
-	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{
-		cache.MakeSpecificLayerFactory(0, seekErrorReader{}),
-		cache.MakeSpecificLayerFactory(1, widthReader{width: 1}),
-		cache.MakeSpecificLayerFactory(2, seekEOFReader{}),
-	})
-	treeCache.GetLayerWriter(0) // this uses the factory to produce the layer cache
-	treeCache.GetLayerWriter(1) // this uses the factory to produce the layer cache
-	treeCache.GetLayerWriter(2) // this uses the factory to produce the layer cache
+	treeCache := cache.NewWriterWithLayerFactories(nil)
+	treeCache.SetLayer(0, seekErrorReader{})
+	treeCache.SetLayer(1, widthReader{width: 1})
+	treeCache.SetLayer(2, seekEOFReader{})
 
 	reader, err := treeCache.GetReader()
 	r.NoError(err)
@@ -478,12 +467,9 @@ func TestGetNode4(t *testing.T) {
 
 func TestGetNode5(t *testing.T) {
 	r := require.New(t)
-	treeCache := cache.NewWriterWithLayerFactories([]cache.LayerFactory{
-		cache.MakeSpecificLayerFactory(0, widthReader{width: 2}),
-		cache.MakeSpecificLayerFactory(1, seekEOFReader{}),
-	})
-	treeCache.GetLayerWriter(0) // this uses the factory to produce the layer cache
-	treeCache.GetLayerWriter(1) // this uses the factory to produce the layer cache
+	treeCache := cache.NewWriterWithLayerFactories(nil)
+	treeCache.SetLayer(0, widthReader{width: 2})
+	treeCache.SetLayer(1, seekEOFReader{})
 
 	reader, err := treeCache.GetReader()
 	r.NoError(err)
