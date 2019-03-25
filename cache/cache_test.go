@@ -20,7 +20,7 @@ func TestCache_ValidateStructure(t *testing.T) {
 	var readers map[uint]LayerReadWriter
 
 	treeCache := &cache{layers: readers}
-	err := treeCache.ValidateStructure()
+	err := treeCache.validateStructure()
 
 	r.Error(err)
 	r.Equal("reader for base layer must be included", err.Error())
@@ -31,7 +31,7 @@ func TestCache_ValidateStructure2(t *testing.T) {
 	readers := make(map[uint]LayerReadWriter)
 
 	treeCache := &cache{layers: readers}
-	err := treeCache.ValidateStructure()
+	err := treeCache.validateStructure()
 
 	r.Error(err)
 	r.Equal("reader for base layer must be included", err.Error())
@@ -45,7 +45,7 @@ func TestCache_ValidateStructureSuccess(t *testing.T) {
 	readers[1] = widthReader{width: 2}
 	readers[2] = widthReader{width: 1}
 	treeCache := &cache{layers: readers}
-	err := treeCache.ValidateStructure()
+	err := treeCache.validateStructure()
 
 	r.NoError(err)
 }
@@ -58,7 +58,7 @@ func TestCache_ValidateStructureFail(t *testing.T) {
 	readers[1] = widthReader{width: 2}
 	readers[2] = widthReader{width: 1}
 	treeCache := &cache{layers: readers}
-	err := treeCache.ValidateStructure()
+	err := treeCache.validateStructure()
 
 	r.Error(err)
 	r.Equal("reader at layer 1 has width 2 instead of 1", err.Error())
@@ -72,7 +72,7 @@ func TestCache_ValidateStructureFail2(t *testing.T) {
 	readers[1] = widthReader{width: 1}
 	readers[2] = widthReader{width: 1}
 	treeCache := &cache{layers: readers}
-	err := treeCache.ValidateStructure()
+	err := treeCache.validateStructure()
 
 	r.Error(err)
 	r.Equal("reader at layer 1 has width 1 instead of 2", err.Error())

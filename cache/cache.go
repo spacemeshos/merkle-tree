@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -40,7 +39,7 @@ func (c *Writer) SetHash(hashFunc func(lChild, rChild []byte) []byte) {
 }
 
 func (c *Writer) GetReader() (*Reader, error) {
-	err := c.ValidateStructure()
+	err := c.validateStructure()
 	if err != nil {
 		return nil, err
 	}
@@ -65,24 +64,7 @@ func (c *Reader) GetHashFunc() func(lChild, rChild []byte) []byte {
 	return c.hash
 }
 
-func (c *cache) Print(bottom, top int) {
-	for i := top; i >= bottom; i-- {
-		print("| ")
-		sliceReadWriter, ok := c.layers[uint(i)].(*SliceReadWriter)
-		if !ok {
-			println("-- layer is not a SliceReadWriter --")
-			continue
-		}
-		for _, n := range sliceReadWriter.slice {
-			printSpaces(numSpaces(i))
-			fmt.Print(hex.EncodeToString(n[:2]))
-			printSpaces(numSpaces(i))
-		}
-		println(" |")
-	}
-}
-
-func (c *cache) ValidateStructure() error {
+func (c *cache) validateStructure() error {
 	// Verify we got the base layer.
 	if _, found := c.layers[0]; !found {
 		return errors.New("reader for base layer must be included")
@@ -133,16 +115,33 @@ func RootHeightFromWidth(width uint64) uint {
 	return uint(math.Ceil(math.Log2(float64(width))))
 }
 
-func numSpaces(n int) int {
-	res := 1
-	for i := 0; i < n; i++ {
-		res += 3 * (1 << uint(i))
-	}
-	return res
-}
-
-func printSpaces(n int) {
-	for i := 0; i < n; i++ {
-		print(" ")
-	}
-}
+//func (c *cache) Print(bottom, top int) {
+//	for i := top; i >= bottom; i-- {
+//		print("| ")
+//		sliceReadWriter, ok := c.layers[uint(i)].(*SliceReadWriter)
+//		if !ok {
+//			println("-- layer is not a SliceReadWriter --")
+//			continue
+//		}
+//		for _, n := range sliceReadWriter.slice {
+//			printSpaces(numSpaces(i))
+//			fmt.Print(hex.EncodeToString(n[:2]))
+//			printSpaces(numSpaces(i))
+//		}
+//		println(" |")
+//	}
+//}
+//
+//func numSpaces(n int) int {
+//	res := 1
+//	for i := 0; i < n; i++ {
+//		res += 3 * (1 << uint(i))
+//	}
+//	return res
+//}
+//
+//func printSpaces(n int) {
+//	for i := 0; i < n; i++ {
+//		print(" ")
+//	}
+//}
