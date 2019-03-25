@@ -8,12 +8,6 @@ import (
 
 var ErrMissingValueAtBaseLayer = errors.New("reader for base layer must be included")
 
-type NodeReader interface {
-	Seek(index uint64) error
-	ReadNext() ([]byte, error)
-	Width() uint64
-}
-
 func GenerateProof(
 	provenLeafIndices []uint64,
 	treeCache *cache.Reader,
@@ -98,7 +92,7 @@ func calcSubtreeProof(c *cache.Reader, leavesToProve []uint64, subtreeStart posi
 	return additionalProof, err
 }
 
-func traverseSubtree(leafReader NodeReader, width uint64, hash HashFunc, leavesToProve []uint64,
+func traverseSubtree(leafReader cache.LayerReader, width uint64, hash HashFunc, leavesToProve []uint64,
 	externalPadding []byte) (root []byte, proof [][]byte, err error) {
 
 	shouldUseExternalPadding := externalPadding != nil

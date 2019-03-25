@@ -7,12 +7,10 @@ import (
 
 func TestMakeMemoryReadWriterFactory(t *testing.T) {
 	r := require.New(t)
-	treeCache := NewWriterWithLayerFactories([]LayerFactory{
-		MakeMemoryReadWriterFactory(2),
-	})
-	treeCache.SetLayer(0, widthReader{width: 1})
+	cacheWriter := NewWriter(MinHeightPolicy(2), MakeSliceReadWriterFactory())
+	cacheWriter.SetLayer(0, widthReader{width: 1})
 
-	cacheReader, err := treeCache.GetReader()
+	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
 	reader := cacheReader.GetLayerReader(1)
@@ -22,14 +20,14 @@ func TestMakeMemoryReadWriterFactory(t *testing.T) {
 	reader = cacheReader.GetLayerReader(3)
 	r.Nil(reader)
 
-	writer := treeCache.GetLayerWriter(1)
+	writer := cacheWriter.GetLayerWriter(1)
 	r.Nil(writer)
-	writer = treeCache.GetLayerWriter(2)
+	writer = cacheWriter.GetLayerWriter(2)
 	r.NotNil(writer)
-	writer = treeCache.GetLayerWriter(3)
+	writer = cacheWriter.GetLayerWriter(3)
 	r.NotNil(writer)
 
-	cacheReader, err = treeCache.GetReader()
+	cacheReader, err = cacheWriter.GetReader()
 	r.NoError(err)
 
 	reader = cacheReader.GetLayerReader(1)
@@ -42,12 +40,10 @@ func TestMakeMemoryReadWriterFactory(t *testing.T) {
 
 func TestMakeMemoryReadWriterFactoryForLayers(t *testing.T) {
 	r := require.New(t)
-	treeCache := NewWriterWithLayerFactories([]LayerFactory{
-		MakeMemoryReadWriterFactoryForLayers([]uint{1, 3}),
-	})
-	treeCache.SetLayer(0, widthReader{width: 1})
+	cacheWriter := NewWriter(SpecificLayersPolicy(map[uint]bool{1: true, 3: true}), MakeSliceReadWriterFactory())
+	cacheWriter.SetLayer(0, widthReader{width: 1})
 
-	cacheReader, err := treeCache.GetReader()
+	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
 	reader := cacheReader.GetLayerReader(1)
@@ -57,14 +53,14 @@ func TestMakeMemoryReadWriterFactoryForLayers(t *testing.T) {
 	reader = cacheReader.GetLayerReader(3)
 	r.Nil(reader)
 
-	writer := treeCache.GetLayerWriter(1)
+	writer := cacheWriter.GetLayerWriter(1)
 	r.NotNil(writer)
-	writer = treeCache.GetLayerWriter(2)
+	writer = cacheWriter.GetLayerWriter(2)
 	r.Nil(writer)
-	writer = treeCache.GetLayerWriter(3)
+	writer = cacheWriter.GetLayerWriter(3)
 	r.NotNil(writer)
 
-	cacheReader, err = treeCache.GetReader()
+	cacheReader, err = cacheWriter.GetReader()
 	r.NoError(err)
 
 	reader = cacheReader.GetLayerReader(1)
@@ -78,12 +74,13 @@ func TestMakeMemoryReadWriterFactoryForLayers(t *testing.T) {
 func TestMakeSpecificLayerFactory(t *testing.T) {
 	r := require.New(t)
 	readWriter := &SliceReadWriter{}
-	treeCache := NewWriterWithLayerFactories([]LayerFactory{
-		MakeSpecificLayerFactory(1, readWriter),
-	})
-	treeCache.SetLayer(0, widthReader{width: 1})
+	cacheWriter := NewWriter(
+		SpecificLayersPolicy(map[uint]bool{1: true}),
+		MakeSpecificLayersFactory(map[uint]LayerReadWriter{1: readWriter}),
+	)
+	cacheWriter.SetLayer(0, widthReader{width: 1})
 
-	cacheReader, err := treeCache.GetReader()
+	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
 	reader := cacheReader.GetLayerReader(1)
@@ -91,12 +88,12 @@ func TestMakeSpecificLayerFactory(t *testing.T) {
 	reader = cacheReader.GetLayerReader(2)
 	r.Nil(reader)
 
-	writer := treeCache.GetLayerWriter(1)
+	writer := cacheWriter.GetLayerWriter(1)
 	r.Equal(readWriter, writer)
-	writer = treeCache.GetLayerWriter(2)
+	writer = cacheWriter.GetLayerWriter(2)
 	r.Nil(writer)
 
-	cacheReader, err = treeCache.GetReader()
+	cacheReader, err = cacheWriter.GetReader()
 	r.NoError(err)
 
 	reader = cacheReader.GetLayerReader(1)

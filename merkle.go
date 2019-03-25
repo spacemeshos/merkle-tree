@@ -39,9 +39,9 @@ type layer struct {
 }
 
 // ensureNextLayerExists creates the next layer if it doesn't exist.
-func (l *layer) ensureNextLayerExists(treeCache *cache.Writer) {
+func (l *layer) ensureNextLayerExists(cacheWriter *cache.Writer) {
 	if l.next == nil {
-		l.next = newLayer(l.height+1, treeCache.GetLayerWriter(l.height+1))
+		l.next = newLayer(l.height+1, cacheWriter.GetLayerWriter(l.height+1))
 	}
 }
 
@@ -83,7 +83,7 @@ type Tree struct {
 	hash          HashFunc
 	proof         [][]byte
 	leavesToProve *sparseBoolStack
-	cache         *cache.Writer
+	cacheWriter   *cache.Writer
 	minHeight     uint
 }
 
@@ -131,7 +131,7 @@ func (t *Tree) AddLeaf(value []byte) error {
 
 			l.parking.value = nil
 			n = parent
-			l.ensureNextLayerExists(t.cache)
+			l.ensureNextLayerExists(t.cacheWriter)
 			l = l.next
 		}
 	}

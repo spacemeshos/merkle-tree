@@ -13,23 +13,25 @@ type Writer struct {
 	*cache
 }
 
-func NewWriterWithLayerFactories(layerFactories []LayerFactory) *Writer {
+func NewWriter(shouldCacheLayer CachingPolicy, layerFactory LayerFactory) *Writer {
 	return &Writer{
 		cache: &cache{
-			layers:         make(map[uint]LayerReadWriter),
-			layerFactories: layerFactories,
+			layers:           make(map[uint]LayerReadWriter),
+			layerFactory:     layerFactory,
+			shouldCacheLayer: shouldCacheLayer,
 		},
 	}
 }
 
-func (c *Writer) SetLayer(layer uint, rw LayerReadWriter) {
-	c.layers[layer] = rw
+func (c *Writer) SetLayer(layerHeight uint, rw LayerReadWriter) {
+	c.layers[layerHeight] = rw
 }
 
-func (c *Writer) GetLayerWriter(layer uint) LayerWriter {
-	layerReadWriter, found := c.layers[layer]
-	if !found {
-		layerReadWriter = c.fillLayerIfNeeded(layer)
+func (c *Writer) GetLayerWriter(layerHeight uint) LayerWriter {
+	layerReadWriter, found := c.layers[layerHeight]
+	if !found && c.shouldCacheLayer(layerHeight) {
+		layerReadWriter = c.layerFactory(layerHeight)
+		c.layers[layerHeight] = layerReadWriter
 	}
 	return layerReadWriter
 }
@@ -51,13 +53,14 @@ type Reader struct {
 }
 
 type cache struct {
-	layers         map[uint]LayerReadWriter
-	hash           func(lChild, rChild []byte) []byte
-	layerFactories []LayerFactory
+	layers           map[uint]LayerReadWriter
+	hash             func(lChild, rChild []byte) []byte
+	shouldCacheLayer CachingPolicy
+	layerFactory     LayerFactory
 }
 
-func (c *Reader) GetLayerReader(layer uint) LayerReader {
-	return c.layers[layer]
+func (c *Reader) GetLayerReader(layerHeight uint) LayerReader {
+	return c.layers[layerHeight]
 }
 
 func (c *Reader) GetHashFunc() func(lChild, rChild []byte) []byte {
@@ -83,18 +86,9 @@ func (c *cache) validateStructure() error {
 	return nil
 }
 
-func (c *cache) fillLayerIfNeeded(layer uint) LayerReadWriter {
-	for _, factory := range c.layerFactories {
-		layerReadWriter := factory(layer)
-		if layerReadWriter != nil {
-			c.layers[layer] = layerReadWriter
-			return layerReadWriter
-		}
-	}
-	return nil
-}
+type CachingPolicy func(layerHeight uint) (shouldCacheLayer bool)
 
-type LayerFactory func(layer uint) LayerReadWriter
+type LayerFactory func(layerHeight uint) LayerReadWriter
 
 type LayerReadWriter interface {
 	LayerReader
