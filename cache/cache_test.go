@@ -13,7 +13,7 @@ type widthReader struct{ width uint64 }
 func (r widthReader) Seek(index uint64) error           { return nil }
 func (r widthReader) ReadNext() ([]byte, error)         { return nil, someError }
 func (r widthReader) Width() uint64                     { return r.width }
-func (r widthReader) Write(p []byte) (n int, err error) { panic("implement me") }
+func (r widthReader) Append(p []byte) (n int, err error) { panic("implement me") }
 
 func TestCache_ValidateStructure(t *testing.T) {
 	r := require.New(t)

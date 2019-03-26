@@ -29,7 +29,7 @@ func (s *SliceReadWriter) ReadNext() ([]byte, error) {
 	return value, nil
 }
 
-func (s *SliceReadWriter) Write(p []byte) (n int, err error) {
+func (s *SliceReadWriter) Append(p []byte) (n int, err error) {
 	s.slice = append(s.slice, p)
 	return len(p), nil
 }

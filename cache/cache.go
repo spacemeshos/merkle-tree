@@ -3,7 +3,6 @@ package cache
 import (
 	"errors"
 	"fmt"
-	"io"
 	"math"
 )
 
@@ -102,7 +101,7 @@ type LayerReader interface {
 }
 
 type LayerWriter interface {
-	io.Writer
+	Append(p []byte) (n int, err error)
 }
 
 func RootHeightFromWidth(width uint64) uint {

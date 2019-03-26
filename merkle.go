@@ -99,7 +99,7 @@ func (t *Tree) AddLeaf(value []byte) error {
 	for {
 		// Writing the node to its layer cache, if applicable.
 		if l.cache != nil {
-			_, err := l.cache.Write(n.value)
+			_, err := l.cache.Append(n.value)
 			if err != nil {
 				lastCachingError = errors.New("error while caching: " + err.Error())
 			}
