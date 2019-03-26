@@ -121,7 +121,7 @@ func TestNewTreeUnbalanced3(t *testing.T) {
 func TestNewTreeUnbalancedProof(t *testing.T) {
 	r := require.New(t)
 
-	leavesToProve := []uint64{0, 4, 7}
+	leavesToProve := setOf(0, 4, 7)
 
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
 
@@ -216,7 +216,7 @@ func BenchmarkNewTreeNoHashing(b *testing.B) {
 
 func TestNewProvingTree(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree([]uint64{4})
+	tree := NewProvingTree(setOf(4))
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -243,7 +243,7 @@ func TestNewProvingTree(t *testing.T) {
 
 func TestNewProvingTreeMultiProof(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree([]uint64{1, 4})
+	tree := NewProvingTree(setOf(1, 4))
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -271,7 +271,7 @@ func TestNewProvingTreeMultiProof(t *testing.T) {
 
 func TestNewProvingTreeMultiProof2(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree([]uint64{0, 1, 4})
+	tree := NewProvingTree(setOf(0, 1, 4))
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -351,19 +351,19 @@ func BenchmarkNewCachingTreeSmall(b *testing.B) {
 func TestSparseBoolStack(t *testing.T) {
 	r := require.New(t)
 
-	allFalse := newSparseBoolStack([]uint64{})
+	allFalse := newSparseBoolStack(make(set))
 	for i := 0; i < 1000; i++ {
 		r.False(allFalse.Pop())
 	}
 
-	allTrue := newSparseBoolStack([]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9})
+	allTrue := newSparseBoolStack(setOf(0, 1, 2, 3, 4, 5, 6, 7, 8, 9))
 	for i := 0; i < 10; i++ {
 		r.True(allTrue.Pop())
 	}
 
-	rounds := make([]uint64, 0, 100)
-	for i := 0; i < 1000; i += 10 {
-		rounds = append(rounds, uint64(i))
+	rounds := make(set)
+	for i := uint64(0); i < 1000; i += 10 {
+		rounds[i] = true
 	}
 	roundsTrue := newSparseBoolStack(rounds)
 	for i := 0; i < 1000; i++ {

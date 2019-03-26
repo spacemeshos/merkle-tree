@@ -4,7 +4,6 @@ import (
 	"errors"
 	"github.com/spacemeshos/merkle-tree/cache"
 	"github.com/spacemeshos/sha256-simd"
-	"sort"
 )
 
 const NodeSize = cache.NodeSize
@@ -54,10 +53,8 @@ type sparseBoolStack struct {
 	currentIndex      uint64
 }
 
-func newSparseBoolStack(trueIndices []uint64) *sparseBoolStack {
-	sorted := make([]uint64, len(trueIndices))
-	copy(sorted, trueIndices)
-	sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+func newSparseBoolStack(trueIndices set) *sparseBoolStack {
+	sorted := trueIndices.asSortedSlice()
 	return &sparseBoolStack{sortedTrueIndices: sorted}
 }
 

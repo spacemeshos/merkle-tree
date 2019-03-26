@@ -9,13 +9,13 @@ import (
 var ErrMissingValueAtBaseLayer = errors.New("reader for base layer must be included")
 
 func GenerateProof(
-	provenLeafIndices []uint64,
+	provenLeafIndices set,
 	treeCache *cache.Reader,
 ) ([][]byte, error) {
 
 	var proof [][]byte
 
-	provenLeafIndexIt := &positionsIterator{s: provenLeafIndices}
+	provenLeafIndexIt := newPositionsIterator(provenLeafIndices)
 	skipPositions := &positionsStack{}
 	rootHeight := cache.RootHeightFromWidth(treeCache.GetLayerReader(0).Width())
 
@@ -68,13 +68,13 @@ func GenerateProof(
 	return proof, nil
 }
 
-func calcSubtreeProof(c *cache.Reader, leavesToProve []uint64, subtreeStart position, width uint64) (
+func calcSubtreeProof(c *cache.Reader, leavesToProve set, subtreeStart position, width uint64) (
 	[][]byte, error) {
 
 	// By subtracting subtreeStart.index we get the index relative to the subtree.
-	relativeLeavesToProve := make([]uint64, len(leavesToProve))
-	for i, leafIndex := range leavesToProve {
-		relativeLeavesToProve[i] = leafIndex - subtreeStart.index
+	relativeLeavesToProve := make(set)
+	for leafIndex, prove := range leavesToProve {
+		relativeLeavesToProve[leafIndex - subtreeStart.index] = prove
 	}
 
 	// Prepare leaf reader to read subtree leaves.
@@ -92,7 +92,7 @@ func calcSubtreeProof(c *cache.Reader, leavesToProve []uint64, subtreeStart posi
 	return additionalProof, err
 }
 
-func traverseSubtree(leafReader cache.LayerReader, width uint64, hash HashFunc, leavesToProve []uint64,
+func traverseSubtree(leafReader cache.LayerReader, width uint64, hash HashFunc, leavesToProve set,
 	externalPadding []byte) (root []byte, proof [][]byte, err error) {
 
 	shouldUseExternalPadding := externalPadding != nil

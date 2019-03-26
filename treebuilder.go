@@ -4,7 +4,7 @@ import "github.com/spacemeshos/merkle-tree/cache"
 
 type TreeBuilder struct {
 	hash           HashFunc
-	leavesToProves []uint64
+	leavesToProves set
 	cacheWriter    *cache.Writer
 	minHeight      uint
 }
@@ -35,7 +35,7 @@ func (tb TreeBuilder) WithHashFunc(hash HashFunc) TreeBuilder {
 	return tb
 }
 
-func (tb TreeBuilder) WithLeavesToProve(leavesToProves []uint64) TreeBuilder {
+func (tb TreeBuilder) WithLeavesToProve(leavesToProves set) TreeBuilder {
 	tb.leavesToProves = leavesToProves
 	return tb
 }
@@ -54,7 +54,7 @@ func NewTree() *Tree {
 	return NewTreeBuilder().Build()
 }
 
-func NewProvingTree(leavesToProves []uint64) *Tree {
+func NewProvingTree(leavesToProves set) *Tree {
 	return NewTreeBuilder().WithLeavesToProve(leavesToProves).Build()
 }
 

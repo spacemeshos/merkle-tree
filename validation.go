@@ -2,7 +2,9 @@ package merkle
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"sort"
 )
 
 const MaxUint = ^uint(0)
@@ -19,18 +21,24 @@ func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedR
 	return bytes.Equal(root, expectedRoot), err
 }
 
-func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc) (validator, error) {
+func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc) (*validator, error) {
 	if len(leafIndices) != len(leaves) {
-		return validator{}, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves),
+		return nil, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves),
 			len(leafIndices))
 	}
 	if len(leaves) == 0 {
-		return validator{}, fmt.Errorf("at least one leaf is required for validation")
+		return nil, errors.New("at least one leaf is required for validation")
+	}
+	if !sort.SliceIsSorted(leafIndices, func(i, j int) bool { return leafIndices[i] < leafIndices[j] }) {
+		return nil, errors.New("leafIndices are not sorted")
+	}
+	if len(setOf(leafIndices...)) != len(leafIndices) {
+		return nil, errors.New("leafIndices contain duplicates")
 	}
 	proofNodes := &proofIterator{proof}
 	leafIt := &leafIterator{leafIndices, leaves}
 
-	return validator{leaves: leafIt, proofNodes: proofNodes, hash: hash}, nil
+	return &validator{leaves: leafIt, proofNodes: proofNodes, hash: hash}, nil
 }
 
 type validator struct {
