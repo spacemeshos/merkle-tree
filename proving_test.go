@@ -426,30 +426,30 @@ var someError = errors.New("some error")
 
 type seekErrorReader struct{}
 
-func (seekErrorReader) Seek(index uint64) error           { return someError }
-func (seekErrorReader) ReadNext() ([]byte, error)         { panic("implement me") }
-func (seekErrorReader) Width() uint64                     { return 3 }
+func (seekErrorReader) Seek(index uint64) error            { return someError }
+func (seekErrorReader) ReadNext() ([]byte, error)          { panic("implement me") }
+func (seekErrorReader) Width() uint64                      { return 3 }
 func (seekErrorReader) Append(p []byte) (n int, err error) { panic("implement me") }
 
 type readErrorReader struct{}
 
-func (readErrorReader) Seek(index uint64) error           { return nil }
-func (readErrorReader) ReadNext() ([]byte, error)         { return nil, someError }
-func (readErrorReader) Width() uint64                     { return 8 }
+func (readErrorReader) Seek(index uint64) error            { return nil }
+func (readErrorReader) ReadNext() ([]byte, error)          { return nil, someError }
+func (readErrorReader) Width() uint64                      { return 8 }
 func (readErrorReader) Append(p []byte) (n int, err error) { panic("implement me") }
 
 type seekEOFReader struct{}
 
-func (seekEOFReader) Seek(index uint64) error           { return io.EOF }
-func (seekEOFReader) ReadNext() ([]byte, error)         { panic("implement me") }
-func (seekEOFReader) Width() uint64                     { return 1 }
+func (seekEOFReader) Seek(index uint64) error            { return io.EOF }
+func (seekEOFReader) ReadNext() ([]byte, error)          { panic("implement me") }
+func (seekEOFReader) Width() uint64                      { return 1 }
 func (seekEOFReader) Append(p []byte) (n int, err error) { panic("implement me") }
 
 type widthReader struct{ width uint64 }
 
-func (r widthReader) Seek(index uint64) error           { return nil }
-func (r widthReader) ReadNext() ([]byte, error)         { return nil, someError }
-func (r widthReader) Width() uint64                     { return r.width }
+func (r widthReader) Seek(index uint64) error            { return nil }
+func (r widthReader) ReadNext() ([]byte, error)          { return nil, someError }
+func (r widthReader) Width() uint64                      { return r.width }
 func (r widthReader) Append(p []byte) (n int, err error) { panic("implement me") }
 
 func TestGetNode(t *testing.T) {
