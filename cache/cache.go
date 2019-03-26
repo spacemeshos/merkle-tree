@@ -51,19 +51,19 @@ type Reader struct {
 	*cache
 }
 
-type cache struct {
-	layers           map[uint]LayerReadWriter
-	hash             func(lChild, rChild []byte) []byte
-	shouldCacheLayer CachingPolicy
-	generateLayer    LayerFactory
-}
-
 func (c *Reader) GetLayerReader(layerHeight uint) LayerReader {
 	return c.layers[layerHeight]
 }
 
 func (c *Reader) GetHashFunc() func(lChild, rChild []byte) []byte {
 	return c.hash
+}
+
+type cache struct {
+	layers           map[uint]LayerReadWriter
+	hash             func(lChild, rChild []byte) []byte
+	shouldCacheLayer CachingPolicy
+	generateLayer    LayerFactory
 }
 
 func (c *cache) validateStructure() error {
