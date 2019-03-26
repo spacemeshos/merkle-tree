@@ -11,9 +11,7 @@ var ErrMissingValueAtBaseLayer = errors.New("reader for base layer must be inclu
 func GenerateProof(
 	provenLeafIndices set,
 	treeCache *cache.Reader,
-) ([][]byte, error) {
-
-	var proof [][]byte
+) (provenLeaves, proofNodes [][]byte, err error) {
 
 	provenLeafIndexIt := newPositionsIterator(provenLeafIndices)
 	skipPositions := &positionsStack{}
@@ -34,11 +32,12 @@ func GenerateProof(
 		// Prepare list of leaves to prove in the subtree.
 		leavesToProve := provenLeafIndexIt.batchPop(subtreeStart.index + width)
 
-		additionalProof, err := calcSubtreeProof(treeCache, leavesToProve, subtreeStart, width)
+		additionalProof, additionalLeaves, err := calcSubtreeProof(treeCache, leavesToProve, subtreeStart, width)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		proof = append(proof, additionalProof...)
+		proofNodes = append(proofNodes, additionalProof...)
+		provenLeaves = append(provenLeaves, additionalLeaves...)
 
 		for ; currentPos.height < rootHeight; currentPos = currentPos.parent() { // Traverse treeCache:
 
@@ -58,42 +57,42 @@ func GenerateProof(
 
 			currentVal, err := GetNode(treeCache, currentPos.sibling())
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 
-			proof = append(proof, currentVal)
+			proofNodes = append(proofNodes, currentVal)
 		}
 	}
 
-	return proof, nil
+	return provenLeaves, proofNodes, nil
 }
 
 func calcSubtreeProof(c *cache.Reader, leavesToProve set, subtreeStart position, width uint64) (
-	[][]byte, error) {
+	additionalProof, additionalLeaves [][]byte, err error) {
 
 	// By subtracting subtreeStart.index we get the index relative to the subtree.
 	relativeLeavesToProve := make(set)
 	for leafIndex, prove := range leavesToProve {
-		relativeLeavesToProve[leafIndex - subtreeStart.index] = prove
+		relativeLeavesToProve[leafIndex-subtreeStart.index] = prove
 	}
 
 	// Prepare leaf reader to read subtree leaves.
 	reader := c.GetLayerReader(0)
-	err := reader.Seek(subtreeStart.index)
+	err = reader.Seek(subtreeStart.index)
 	if err != nil {
-		return nil, errors.New("while preparing to traverse subtree: " + err.Error())
+		return nil, nil, errors.New("while preparing to traverse subtree: " + err.Error())
 	}
 
-	_, additionalProof, err := traverseSubtree(reader, width, c.GetHashFunc(), relativeLeavesToProve, nil)
+	_, additionalProof, additionalLeaves, err = traverseSubtree(reader, width, c.GetHashFunc(), relativeLeavesToProve, nil)
 	if err != nil {
-		return nil, errors.New("while traversing subtree: " + err.Error())
+		return nil, nil, errors.New("while traversing subtree: " + err.Error())
 	}
 
-	return additionalProof, err
+	return additionalProof, additionalLeaves, err
 }
 
 func traverseSubtree(leafReader cache.LayerReader, width uint64, hash HashFunc, leavesToProve set,
-	externalPadding []byte) (root []byte, proof [][]byte, err error) {
+	externalPadding []byte) (root []byte, proof, provenLeaves [][]byte, err error) {
 
 	shouldUseExternalPadding := externalPadding != nil
 	t := NewTreeBuilder().
@@ -111,15 +110,18 @@ func traverseSubtree(leafReader cache.LayerReader, width uint64, hash HashFunc, 
 			leaf = externalPadding
 			shouldUseExternalPadding = false
 		} else if err != nil {
-			return nil, nil, errors.New("while reading a leaf: " + err.Error())
+			return nil, nil, nil, errors.New("while reading a leaf: " + err.Error())
 		}
 		err = t.AddLeaf(leaf)
 		if err != nil {
-			return nil, nil, errors.New("while adding a leaf: " + err.Error())
+			return nil, nil, nil, errors.New("while adding a leaf: " + err.Error())
+		}
+		if leavesToProve[i] {
+			provenLeaves = append(provenLeaves, leaf)
 		}
 	}
 	root, proof = t.RootAndProof()
-	return root, proof, nil
+	return root, proof, provenLeaves, nil
 }
 
 // GetNode reads the node at the requested position from the cache or calculates it if not available.
@@ -185,7 +187,7 @@ func calcNode(c *cache.Reader, nodePos position) ([]byte, error) {
 	}
 
 	// Traverse the subtree.
-	currentVal, _, err := traverseSubtree(reader, width, c.GetHashFunc(), nil, paddingValue)
+	currentVal, _, _, err := traverseSubtree(reader, width, c.GetHashFunc(), nil, paddingValue)
 	if err != nil {
 		return nil, errors.New("while traversing subtree for root: " + err.Error())
 	}

@@ -49,12 +49,18 @@ func TestGenerateProof(t *testing.T) {
 	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
 	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
 
-	var proof, expectedProof nodes
-	proof, err = GenerateProof(leavesToProve, cacheReader)
+	var leaves, proof, expectedProof nodes
+	leaves, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
-	r.EqualValues(expectedProof, proof, "actual")
+	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
 }
 
 func BenchmarkGenerateProof(b *testing.B) {
@@ -87,15 +93,21 @@ func BenchmarkGenerateProof(b *testing.B) {
 
 	r.Equal(uint64(1)<<treeHeight, cacheReader.GetLayerReader(0).Width())
 
-	var proof, expectedProof nodes
+	var leaves, proof, expectedProof nodes
 
 	start := time.Now()
-	proof, err = GenerateProof(leavesToProve, cacheReader)
+	leaves, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 	b.Log(time.Since(start))
 
 	expectedProof = tree.Proof()
-	r.EqualValues(expectedProof, proof, "actual")
+	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
 
 	/*
 	   proving_test.go:88: 1.213317ms
@@ -132,12 +144,18 @@ func TestGenerateProofWithRoot(t *testing.T) {
 	r.NoError(err)
 	r.Equal(cacheRoot, expectedRoot)
 
-	var proof, expectedProof nodes
-	proof, err = GenerateProof(leavesToProve, cacheReader)
+	var leaves, proof, expectedProof nodes
+	leaves, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
-	r.EqualValues(expectedProof, proof, "actual")
+	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
 }
 
 func TestGenerateProofWithoutCache(t *testing.T) {
@@ -161,12 +179,18 @@ func TestGenerateProofWithoutCache(t *testing.T) {
 
 	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
 
-	var proof, expectedProof nodes
-	proof, err = GenerateProof(leavesToProve, cacheReader)
+	var leaves, proof, expectedProof nodes
+	leaves, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
-	r.EqualValues(expectedProof, proof, "actual")
+	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
 }
 
 func TestGenerateProofWithSingleLayerCache(t *testing.T) {
@@ -193,12 +217,18 @@ func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
 	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
 
-	var proof, expectedProof nodes
-	proof, err = GenerateProof(leavesToProve, cacheReader)
+	var leaves, proof, expectedProof nodes
+	leaves, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
 }
 
 func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
@@ -225,12 +255,18 @@ func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
 	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
 
-	var proof, expectedProof nodes
-	proof, err = GenerateProof(leavesToProve, cacheReader)
+	var leaves, proof, expectedProof nodes
+	leaves, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
 }
 
 func TestGenerateProofWithSingleLayerCache3(t *testing.T) {
@@ -258,7 +294,7 @@ func TestGenerateProofWithSingleLayerCache3(t *testing.T) {
 	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
 
 	var proof, expectedProof nodes
-	proof, err = GenerateProof(leavesToProve, cacheReader)
+	_, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
@@ -288,12 +324,18 @@ func TestGenerateProofUnbalanced(t *testing.T) {
 	r.Equal(uint64(3), cacheReader.GetLayerReader(1).Width())
 	r.Equal(uint64(1), cacheReader.GetLayerReader(2).Width())
 
-	var proof, expectedProof nodes
-	proof, err = GenerateProof(leavesToProve, cacheReader)
+	var leaves, proof, expectedProof nodes
+	leaves, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
 }
 
 func TestGenerateProofUnbalanced2(t *testing.T) {
@@ -319,12 +361,18 @@ func TestGenerateProofUnbalanced2(t *testing.T) {
 	r.Equal(uint64(3), cacheReader.GetLayerReader(1).Width())
 	r.Equal(uint64(1), cacheReader.GetLayerReader(2).Width())
 
-	var proof, expectedProof nodes
-	proof, err = GenerateProof(leavesToProve, cacheReader)
+	var leaves, proof, expectedProof nodes
+	leaves, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
 }
 
 func TestGenerateProofUnbalanced3(t *testing.T) {
@@ -350,12 +398,18 @@ func TestGenerateProofUnbalanced3(t *testing.T) {
 	r.Equal(uint64(3), cacheReader.GetLayerReader(1).Width())
 	r.Equal(uint64(1), cacheReader.GetLayerReader(2).Width())
 
-	var proof, expectedProof nodes
-	proof, err = GenerateProof(leavesToProve, cacheReader)
+	var leaves, proof, expectedProof nodes
+	leaves, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
 }
 
 type nodes [][]byte
