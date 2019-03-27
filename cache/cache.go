@@ -89,6 +89,8 @@ type CachingPolicy func(layerHeight uint) (shouldCacheLayer bool)
 
 type LayerFactory func(layerHeight uint) LayerReadWriter
 
+// LayerReadWriter is a combined reader-writer. Note that the Seek() method only belongs to the LayerReader interface
+// and does not affect the LayerWriter.
 type LayerReadWriter interface {
 	LayerReader
 	LayerWriter
