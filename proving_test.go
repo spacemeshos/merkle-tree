@@ -2,6 +2,8 @@ package merkle
 
 import (
 	"encoding/hex"
+	"errors"
+	"github.com/spacemeshos/merkle-tree/cache"
 	"github.com/stretchr/testify/require"
 	"io"
 	"testing"
@@ -23,14 +25,13 @@ import (
 
 func TestGenerateProof(t *testing.T) {
 	r := require.New(t)
-	sliceReadWriters := make(map[uint]*sliceReadWriter)
-	sliceReadWriters[0] = &sliceReadWriter{}
-	sliceReadWriters[1] = &sliceReadWriter{}
-	sliceReadWriters[2] = &sliceReadWriter{}
-	leavesToProve := []uint64{0, 4, 7}
 
-	tree := NewTreeBuilder(GetSha256Parent).
-		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+	leavesToProve := setOf(0, 4, 7)
+
+	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
+
+	tree := NewTreeBuilder().
+		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 8; i++ {
@@ -41,34 +42,46 @@ func TestGenerateProof(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Len(sliceReadWriters[0].slice, 8)
-	r.Len(sliceReadWriters[1].slice, 4)
-	r.Len(sliceReadWriters[2].slice, 2)
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
 
-	var proof, expectedProof nodes
-	var err error
-	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
+	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
+	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
+
+	var leaves, proof, expectedProof nodes
+	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
-	r.EqualValues(expectedProof, proof, "actual")
+	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
+	r.EqualValues([]uint64{0, 4, 7}, sortedIndices)
 }
 
 func BenchmarkGenerateProof(b *testing.B) {
 	const treeHeight = 23
 	r := require.New(b)
-	sliceReadWriters := make(map[uint]*sliceReadWriter)
-	sliceReadWriters[0] = &sliceReadWriter{}
-	for i := 7; i < treeHeight; i++ {
-		sliceReadWriters[uint(i)] = &sliceReadWriter{}
-	}
-	var leavesToProve []uint64
+
+	leavesToProve := make(set)
+
+	cacheWriter := cache.NewWriter(
+		cache.Combine(
+			cache.MinHeightPolicy(7),
+			cache.SpecificLayersPolicy(map[uint]bool{0: true})),
+		cache.MakeSliceReadWriterFactory())
+
 	for i := 0; i < 20; i++ {
-		leavesToProve = append(leavesToProve, uint64(i)*400000)
+		leavesToProve[uint64(i)*400000] = true
 	}
 
-	tree := NewTreeBuilder(GetSha256Parent).
-		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+	tree := NewTreeBuilder().
+		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 1<<treeHeight; i++ {
@@ -76,18 +89,26 @@ func BenchmarkGenerateProof(b *testing.B) {
 		r.NoError(err)
 	}
 
-	r.Len(sliceReadWriters[0].slice, 1<<treeHeight)
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
 
-	var proof, expectedProof nodes
-	var err error
+	r.Equal(uint64(1)<<treeHeight, cacheReader.GetLayerReader(0).Width())
+
+	var leaves, proof, expectedProof nodes
 
 	start := time.Now()
-	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	_, leaves, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 	b.Log(time.Since(start))
 
 	expectedProof = tree.Proof()
-	r.EqualValues(expectedProof, proof, "actual")
+	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
 
 	/*
 	   proving_test.go:88: 1.213317ms
@@ -96,14 +117,13 @@ func BenchmarkGenerateProof(b *testing.B) {
 
 func TestGenerateProofWithRoot(t *testing.T) {
 	r := require.New(t)
-	sliceReadWriters := make(map[uint]*sliceReadWriter)
-	sliceReadWriters[0] = &sliceReadWriter{}
-	sliceReadWriters[1] = &sliceReadWriter{}
-	sliceReadWriters[2] = &sliceReadWriter{}
-	sliceReadWriters[3] = &sliceReadWriter{}
-	leavesToProve := []uint64{0, 4, 7}
-	tree := NewTreeBuilder(GetSha256Parent).
-		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+
+	leavesToProve := setOf(0, 4, 7)
+
+	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
+
+	tree := NewTreeBuilder().
+		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 8; i++ {
@@ -114,28 +134,38 @@ func TestGenerateProofWithRoot(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Len(sliceReadWriters[0].slice, 8)
-	r.Len(sliceReadWriters[1].slice, 4)
-	r.Len(sliceReadWriters[2].slice, 2)
-	r.Len(sliceReadWriters[3].slice, 1)
-	r.Equal(expectedRoot, sliceReadWriters[3].slice[0])
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
 
-	var proof, expectedProof nodes
-	var err error
-	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
+	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
+	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
+	r.Equal(uint64(1), cacheReader.GetLayerReader(3).Width())
+	cacheRoot, err := cacheReader.GetLayerReader(3).ReadNext()
+	r.NoError(err)
+	r.Equal(cacheRoot, expectedRoot)
+
+	var leaves, proof, expectedProof nodes
+	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
-	r.EqualValues(expectedProof, proof, "actual")
+	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
+	r.EqualValues([]uint64{0, 4, 7}, sortedIndices)
 }
 
 func TestGenerateProofWithoutCache(t *testing.T) {
 	r := require.New(t)
-	sliceReadWriters := make(map[uint]*sliceReadWriter)
-	sliceReadWriters[0] = &sliceReadWriter{}
-	leavesToProve := []uint64{0, 4, 7}
-	tree := NewTreeBuilder(GetSha256Parent).
-		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+	leavesToProve := setOf(0, 4, 7)
+	cacheWriter := cache.NewWriter(cache.SpecificLayersPolicy(map[uint]bool{0: true}), cache.MakeSliceReadWriterFactory())
+	tree := NewTreeBuilder().
+		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 8; i++ {
@@ -146,25 +176,34 @@ func TestGenerateProofWithoutCache(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Len(sliceReadWriters[0].slice, 8)
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
 
-	var proof, expectedProof nodes
-	var err error
-	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
+
+	var leaves, proof, expectedProof nodes
+	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
-	r.EqualValues(expectedProof, proof, "actual")
+	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
+	r.EqualValues([]uint64{0, 4, 7}, sortedIndices)
 }
 
 func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 	r := require.New(t)
-	sliceReadWriters := make(map[uint]*sliceReadWriter)
-	sliceReadWriters[0] = &sliceReadWriter{}
-	sliceReadWriters[2] = &sliceReadWriter{}
-	leavesToProve := []uint64{0, 4, 7}
-	tree := NewTreeBuilder(GetSha256Parent).
-		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+	leavesToProve := setOf(0, 4, 7)
+	cacheWriter := cache.NewWriter(
+		cache.SpecificLayersPolicy(map[uint]bool{0: true, 2: true}),
+		cache.MakeSliceReadWriterFactory())
+	tree := NewTreeBuilder().
+		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 8; i++ {
@@ -175,26 +214,35 @@ func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Len(sliceReadWriters[0].slice, 8)
-	r.Len(sliceReadWriters[2].slice, 2)
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
 
-	var proof, expectedProof nodes
-	var err error
-	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
+	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
+
+	var leaves, proof, expectedProof nodes
+	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
+	r.EqualValues([]uint64{0, 4, 7}, sortedIndices)
 }
 
 func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 	r := require.New(t)
-	sliceReadWriters := make(map[uint]*sliceReadWriter)
-	sliceReadWriters[0] = &sliceReadWriter{}
-	sliceReadWriters[1] = &sliceReadWriter{}
-	leavesToProve := []uint64{0, 4, 7}
-	tree := NewTreeBuilder(GetSha256Parent).
-		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+	leavesToProve := setOf(0, 4, 7)
+	cacheWriter := cache.NewWriter(
+		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true}),
+		cache.MakeSliceReadWriterFactory())
+	tree := NewTreeBuilder().
+		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 8; i++ {
@@ -205,26 +253,35 @@ func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Len(sliceReadWriters[0].slice, 8)
-	r.Len(sliceReadWriters[1].slice, 4)
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
 
-	var proof, expectedProof nodes
-	var err error
-	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
+	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
+
+	var leaves, proof, expectedProof nodes
+	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
 	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
+	r.EqualValues([]uint64{0, 4, 7}, sortedIndices)
 }
 
 func TestGenerateProofWithSingleLayerCache3(t *testing.T) {
 	r := require.New(t)
-	sliceReadWriters := make(map[uint]*sliceReadWriter)
-	sliceReadWriters[0] = &sliceReadWriter{}
-	sliceReadWriters[1] = &sliceReadWriter{}
-	leavesToProve := []uint64{0}
-	tree := NewTreeBuilder(GetSha256Parent).
-		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+	leavesToProve := setOf(0)
+	cacheWriter := cache.NewWriter(
+		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true}),
+		cache.MakeSliceReadWriterFactory())
+	tree := NewTreeBuilder().
+		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 8; i++ {
@@ -235,12 +292,14 @@ func TestGenerateProofWithSingleLayerCache3(t *testing.T) {
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
 
-	r.Len(sliceReadWriters[0].slice, 8)
-	r.Len(sliceReadWriters[1].slice, 4)
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
+
+	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
+	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
 
 	var proof, expectedProof nodes
-	var err error
-	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	_, _, proof, err = GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
@@ -249,14 +308,13 @@ func TestGenerateProofWithSingleLayerCache3(t *testing.T) {
 
 func TestGenerateProofUnbalanced(t *testing.T) {
 	r := require.New(t)
-	sliceReadWriters := make(map[uint]*sliceReadWriter)
-	sliceReadWriters[0] = &sliceReadWriter{}
-	sliceReadWriters[1] = &sliceReadWriter{}
-	sliceReadWriters[2] = &sliceReadWriter{}
-	leavesToProve := []uint64{0, 4, 6}
+	leavesToProve := setOf(0, 4, 6)
+	cacheWriter := cache.NewWriter(
+		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true, 2: true}),
+		cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder(GetSha256Parent).
-		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+	tree := NewTreeBuilder().
+		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 7; i++ {
@@ -264,29 +322,37 @@ func TestGenerateProofUnbalanced(t *testing.T) {
 		r.NoError(err)
 	}
 
-	r.Len(sliceReadWriters[0].slice, 7)
-	r.Len(sliceReadWriters[1].slice, 3)
-	r.Len(sliceReadWriters[2].slice, 1)
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
 
-	var proof, expectedProof nodes
-	var err error
-	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	r.Equal(uint64(7), cacheReader.GetLayerReader(0).Width())
+	r.Equal(uint64(3), cacheReader.GetLayerReader(1).Width())
+	r.Equal(uint64(1), cacheReader.GetLayerReader(2).Width())
+
+	var leaves, proof, expectedProof nodes
+	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
-	r.EqualValues(expectedProof, proof, "actual")
+	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
+	r.EqualValues([]uint64{0, 4, 6}, sortedIndices)
 }
 
 func TestGenerateProofUnbalanced2(t *testing.T) {
 	r := require.New(t)
-	sliceReadWriters := make(map[uint]*sliceReadWriter)
-	sliceReadWriters[0] = &sliceReadWriter{}
-	sliceReadWriters[1] = &sliceReadWriter{}
-	sliceReadWriters[2] = &sliceReadWriter{}
-	leavesToProve := []uint64{0, 4}
+	leavesToProve := setOf(0, 4)
+	cacheWriter := cache.NewWriter(
+		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true, 2: true}),
+		cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder(GetSha256Parent).
-		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+	tree := NewTreeBuilder().
+		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 6; i++ {
@@ -294,29 +360,37 @@ func TestGenerateProofUnbalanced2(t *testing.T) {
 		r.NoError(err)
 	}
 
-	r.Len(sliceReadWriters[0].slice, 6)
-	r.Len(sliceReadWriters[1].slice, 3)
-	r.Len(sliceReadWriters[2].slice, 1)
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
 
-	var proof, expectedProof nodes
-	var err error
-	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	r.Equal(uint64(6), cacheReader.GetLayerReader(0).Width())
+	r.Equal(uint64(3), cacheReader.GetLayerReader(1).Width())
+	r.Equal(uint64(1), cacheReader.GetLayerReader(2).Width())
+
+	var leaves, proof, expectedProof nodes
+	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
-	r.EqualValues(expectedProof, proof, "actual")
+	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
+	r.EqualValues([]uint64{0, 4}, sortedIndices)
 }
 
 func TestGenerateProofUnbalanced3(t *testing.T) {
 	r := require.New(t)
-	sliceReadWriters := make(map[uint]*sliceReadWriter)
-	sliceReadWriters[0] = &sliceReadWriter{}
-	sliceReadWriters[1] = &sliceReadWriter{}
-	sliceReadWriters[2] = &sliceReadWriter{}
-	leavesToProve := []uint64{0}
+	leavesToProve := setOf(0)
+	cacheWriter := cache.NewWriter(
+		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true, 2: true}),
+		cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder(GetSha256Parent).
-		WithCache(WritersFromSliceReadWriters(sliceReadWriters)).
+	tree := NewTreeBuilder().
+		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
 	for i := uint64(0); i < 7; i++ {
@@ -324,17 +398,26 @@ func TestGenerateProofUnbalanced3(t *testing.T) {
 		r.NoError(err)
 	}
 
-	r.Len(sliceReadWriters[0].slice, 7)
-	r.Len(sliceReadWriters[1].slice, 3)
-	r.Len(sliceReadWriters[2].slice, 1)
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
 
-	var proof, expectedProof nodes
-	var err error
-	proof, err = GenerateProof(leavesToProve, NodeReadersFromSliceReadWriters(sliceReadWriters), GetSha256Parent)
+	r.Equal(uint64(7), cacheReader.GetLayerReader(0).Width())
+	r.Equal(uint64(3), cacheReader.GetLayerReader(1).Width())
+	r.Equal(uint64(1), cacheReader.GetLayerReader(2).Width())
+
+	var leaves, proof, expectedProof nodes
+	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
 	r.NoError(err)
 
 	expectedProof = tree.Proof()
-	r.EqualValues(expectedProof, proof, "actual")
+	r.EqualValues(expectedProof, proof)
+
+	var expectedLeaves nodes
+	for _, i := range leavesToProve.asSortedSlice() {
+		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
+	}
+	r.EqualValues(expectedLeaves, leaves)
+	r.EqualValues([]uint64{0}, sortedIndices)
 }
 
 type nodes [][]byte
@@ -347,18 +430,124 @@ func (n nodes) String() string {
 	return s
 }
 
-func WritersFromSliceReadWriters(sliceReadWriters map[uint]*sliceReadWriter) map[uint]io.Writer {
-	cache := make(map[uint]io.Writer)
-	for k, v := range sliceReadWriters {
-		cache[k] = v
-	}
-	return cache
+var someError = errors.New("some error")
+
+type seekErrorReader struct{}
+
+func (seekErrorReader) Seek(index uint64) error            { return someError }
+func (seekErrorReader) ReadNext() ([]byte, error)          { panic("implement me") }
+func (seekErrorReader) Width() uint64                      { return 3 }
+func (seekErrorReader) Append(p []byte) (n int, err error) { panic("implement me") }
+
+type readErrorReader struct{}
+
+func (readErrorReader) Seek(index uint64) error            { return nil }
+func (readErrorReader) ReadNext() ([]byte, error)          { return nil, someError }
+func (readErrorReader) Width() uint64                      { return 8 }
+func (readErrorReader) Append(p []byte) (n int, err error) { panic("implement me") }
+
+type seekEOFReader struct{}
+
+func (seekEOFReader) Seek(index uint64) error            { return io.EOF }
+func (seekEOFReader) ReadNext() ([]byte, error)          { panic("implement me") }
+func (seekEOFReader) Width() uint64                      { return 1 }
+func (seekEOFReader) Append(p []byte) (n int, err error) { panic("implement me") }
+
+type widthReader struct{ width uint64 }
+
+func (r widthReader) Seek(index uint64) error            { return nil }
+func (r widthReader) ReadNext() ([]byte, error)          { return nil, someError }
+func (r widthReader) Width() uint64                      { return r.width }
+func (r widthReader) Append(p []byte) (n int, err error) { panic("implement me") }
+
+func TestGetNode(t *testing.T) {
+	r := require.New(t)
+
+	cacheWriter := cache.NewWriter(cache.SpecificLayersPolicy(map[uint]bool{}), nil)
+	cacheWriter.SetLayer(0, seekErrorReader{})
+
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
+
+	nodePos := position{}
+	node, err := GetNode(cacheReader, nodePos)
+
+	r.Error(err)
+	r.Equal("while seeking to position <h: 0 i: 0> in cache: some error", err.Error())
+	r.Nil(node)
+
 }
 
-func NodeReadersFromSliceReadWriters(sliceReadWriters map[uint]*sliceReadWriter) map[uint]NodeReader {
-	nodeReaders := make(map[uint]NodeReader, len(sliceReadWriters))
-	for k, v := range sliceReadWriters {
-		nodeReaders[k] = v
-	}
-	return nodeReaders
+func TestGetNode2(t *testing.T) {
+	r := require.New(t)
+	cacheWriter := cache.NewWriter(nil, nil)
+	cacheWriter.SetLayer(0, readErrorReader{})
+
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
+	nodePos := position{}
+	node, err := GetNode(cacheReader, nodePos)
+
+	r.Error(err)
+	r.Equal("while reading from cache: some error", err.Error())
+	r.Nil(node)
+}
+
+func TestGetNode3(t *testing.T) {
+	r := require.New(t)
+	cacheWriter := cache.NewWriter(nil, nil)
+	cacheWriter.SetLayer(0, seekErrorReader{})
+	cacheWriter.SetLayer(1, seekEOFReader{})
+
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
+	nodePos := position{height: 1}
+	node, err := GetNode(cacheReader, nodePos)
+
+	r.Error(err)
+	r.Equal("while seeking to position <h: 0 i: 0> in cache: some error", err.Error())
+	r.Nil(node)
+}
+
+func TestGetNode4(t *testing.T) {
+	r := require.New(t)
+	cacheWriter := cache.NewWriter(nil, nil)
+	cacheWriter.SetLayer(0, seekErrorReader{})
+	cacheWriter.SetLayer(1, widthReader{width: 1})
+	cacheWriter.SetLayer(2, seekEOFReader{})
+
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
+	nodePos := position{height: 2}
+	node, err := GetNode(cacheReader, nodePos)
+
+	r.Error(err)
+	r.Equal("while calculating ephemeral node at position <h: 1 i: 1>: while seeking to position <h: 0 i: 10> in cache: some error", err.Error())
+	r.Nil(node)
+}
+
+func TestGetNode5(t *testing.T) {
+	r := require.New(t)
+	cacheWriter := cache.NewWriter(nil, nil)
+	cacheWriter.SetLayer(0, widthReader{width: 2})
+	cacheWriter.SetLayer(1, seekEOFReader{})
+
+	cacheReader, err := cacheWriter.GetReader()
+	r.NoError(err)
+	nodePos := position{height: 1}
+	node, err := GetNode(cacheReader, nodePos)
+
+	r.Error(err)
+	r.Equal("while traversing subtree for root: while reading a leaf: some error", err.Error())
+	r.Nil(node)
+}
+
+func TestCache_ValidateStructure(t *testing.T) {
+	r := require.New(t)
+	cacheWriter := cache.NewWriter(nil, nil)
+	cacheReader, err := cacheWriter.GetReader()
+
+	r.Error(err)
+	r.Equal("reader for base layer must be included", err.Error())
+	r.Nil(cacheReader)
 }

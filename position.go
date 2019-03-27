@@ -1,9 +1,6 @@
 package merkle
 
-import (
-	"fmt"
-	"math"
-)
+import "fmt"
 
 type position struct {
 	index  uint64
@@ -46,6 +43,23 @@ func (p position) leftChild() position {
 	}
 }
 
-func rootHeightFromWidth(width uint64) uint {
-	return uint(math.Ceil(math.Log2(float64(width))))
+type positionsStack struct {
+	positions []position
+}
+
+func (s *positionsStack) Push(v position) {
+	s.positions = append(s.positions, v)
+}
+
+// Check the top of the stack for equality and pop the element if it's equal.
+func (s *positionsStack) PopIfEqual(p position) bool {
+	l := len(s.positions)
+	if l == 0 {
+		return false
+	}
+	if s.positions[l-1] == p {
+		s.positions = s.positions[:l-1]
+		return true
+	}
+	return false
 }

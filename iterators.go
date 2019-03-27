@@ -1,11 +1,40 @@
 package merkle
 
-import "errors"
+import (
+	"errors"
+	"sort"
+)
 
 var noMoreItems = errors.New("no more items")
 
+type set map[uint64]bool
+
+func (s set) asSortedSlice() []uint64 {
+	var ret []uint64
+	for key, value := range s {
+		if value {
+			ret = append(ret, key)
+		}
+	}
+	sort.Slice(ret, func(i, j int) bool { return ret[i] < ret[j] })
+	return ret
+}
+
+func setOf(members ...uint64) set {
+	ret := make(set)
+	for _, member := range members {
+		ret[member] = true
+	}
+	return ret
+}
+
 type positionsIterator struct {
 	s []uint64
+}
+
+func newPositionsIterator(positions set) *positionsIterator {
+	s := positions.asSortedSlice()
+	return &positionsIterator{s: s}
 }
 
 func (it *positionsIterator) peek() (pos position, found bool) {
@@ -17,10 +46,10 @@ func (it *positionsIterator) peek() (pos position, found bool) {
 }
 
 // batchPop returns the indices of all positions up to endIndex.
-func (it *positionsIterator) batchPop(endIndex uint64) []uint64 {
-	var res []uint64
+func (it *positionsIterator) batchPop(endIndex uint64) set {
+	res := make(set)
 	for len(it.s) > 0 && it.s[0] < endIndex {
-		res = append(res, it.s[0])
+		res[it.s[0]] = true
 		it.s = it.s[1:]
 	}
 	return res

@@ -26,7 +26,7 @@ func TestValidatePartialTreeForRealz(t *testing.T) {
 
 	leafIndices := []uint64{4}
 	leaves := [][]byte{NewNodeFromUint64(4)}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(setOf(leafIndices...))
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -53,7 +53,7 @@ func TestValidatePartialTreeMulti(t *testing.T) {
 		NewNodeFromUint64(1),
 		NewNodeFromUint64(4),
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(setOf(leafIndices...))
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -81,7 +81,7 @@ func TestValidatePartialTreeMulti2(t *testing.T) {
 		NewNodeFromUint64(1),
 		NewNodeFromUint64(4),
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(setOf(leafIndices...))
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -109,7 +109,7 @@ func TestValidatePartialTreeMultiUnbalanced(t *testing.T) {
 		NewNodeFromUint64(4),
 		NewNodeFromUint64(7),
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(setOf(leafIndices...))
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -140,7 +140,7 @@ func TestValidatePartialTreeMultiUnbalanced2(t *testing.T) {
 		NewNodeFromUint64(7),
 		NewNodeFromUint64(9),
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(setOf(leafIndices...))
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -168,7 +168,7 @@ func TestValidatePartialTreeUnbalanced(t *testing.T) {
 	leaves := [][]byte{
 		NewNodeFromUint64(9),
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(setOf(leafIndices...))
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -197,7 +197,7 @@ func BenchmarkValidatePartialTree(b *testing.B) {
 	for _, i := range leafIndices {
 		leaves = append(leaves, NewNodeFromUint64(i))
 	}
-	tree := NewProvingTree(GetSha256Parent, leafIndices)
+	tree := NewProvingTree(setOf(leafIndices...))
 	for i := uint64(0); i < 1<<23; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -231,12 +231,24 @@ func TestValidatePartialTreeErrors(t *testing.T) {
 	}
 	root, _ := NewNodeFromHex("2657509b700c67b205c5196ee9a231e0fe567f1dae4a15bb52c0de813d65677a")
 	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
-	req.Error(err)
-	req.False(valid, "Proof should be valid, but isn't")
+	req.EqualError(err, "number of leaves (1) must equal number of indices (2)")
+	req.False(valid)
 
 	valid, err = ValidatePartialTree([]uint64{}, [][]byte{}, proof, root, GetSha256Parent)
-	req.Error(err)
-	req.False(valid, "Proof should be valid, but isn't")
+	req.EqualError(err, "at least one leaf is required for validation")
+	req.False(valid)
+
+	leafIndices = []uint64{5, 3}
+	leaves = [][]byte{NewNodeFromUint64(5), NewNodeFromUint64(3)}
+	valid, err = ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
+	req.EqualError(err, "leafIndices are not sorted")
+	req.False(valid)
+
+	leafIndices = []uint64{3, 3}
+	leaves = [][]byte{NewNodeFromUint64(5), NewNodeFromUint64(3)}
+	valid, err = ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
+	req.EqualError(err, "leafIndices contain duplicates")
+	req.False(valid)
 }
 
 func TestValidator_calcRoot(t *testing.T) {
