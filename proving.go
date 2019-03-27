@@ -9,7 +9,7 @@ import (
 var ErrMissingValueAtBaseLayer = errors.New("reader for base layer must be included")
 
 func GenerateProof(
-	provenLeafIndices set,
+	provenLeafIndices map[uint64]bool,
 	treeCache *cache.Reader,
 ) (sortedProvenLeafIndices []uint64, provenLeaves, proofNodes [][]byte, err error) {
 
@@ -64,7 +64,7 @@ func GenerateProof(
 		}
 	}
 
-	return provenLeafIndices.asSortedSlice(), provenLeaves, proofNodes, nil
+	return set(provenLeafIndices).asSortedSlice(), provenLeaves, proofNodes, nil
 }
 
 func calcSubtreeProof(c *cache.Reader, leavesToProve set, subtreeStart position, width uint64) (

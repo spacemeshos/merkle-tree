@@ -35,7 +35,7 @@ func (tb TreeBuilder) WithHashFunc(hash HashFunc) TreeBuilder {
 	return tb
 }
 
-func (tb TreeBuilder) WithLeavesToProve(leavesToProves set) TreeBuilder {
+func (tb TreeBuilder) WithLeavesToProve(leavesToProves map[uint64]bool) TreeBuilder {
 	tb.leavesToProves = leavesToProves
 	return tb
 }
@@ -54,7 +54,7 @@ func NewTree() *Tree {
 	return NewTreeBuilder().Build()
 }
 
-func NewProvingTree(leavesToProves set) *Tree {
+func NewProvingTree(leavesToProves map[uint64]bool) *Tree {
 	return NewTreeBuilder().WithLeavesToProve(leavesToProves).Build()
 }
 
