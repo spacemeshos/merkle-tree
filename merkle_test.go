@@ -381,3 +381,35 @@ func TestEmptyNode(t *testing.T) {
 	r.True(emptyNode.IsEmpty())
 	r.False(emptyNode.onProvenPath)
 }
+
+func TestTree_GetParkedNodes(t *testing.T) {
+	r := require.New(t)
+
+	tree := NewTreeBuilder().Build()
+
+	r.NoError(tree.AddLeaf([]byte{0}))
+	r.EqualValues(
+		[][]byte{{0}},
+		tree.GetParkedNodes())
+
+	r.NoError(tree.AddLeaf([]byte{1}))
+	r.EqualValues(
+		[][]byte{nil, decode(r, "b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2")},
+		tree.GetParkedNodes())
+
+	r.NoError(tree.AddLeaf([]byte{2}))
+	r.EqualValues(
+		[][]byte{{2}, decode(r, "b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2")},
+		tree.GetParkedNodes())
+
+	r.NoError(tree.AddLeaf([]byte{3}))
+	r.EqualValues(
+		[][]byte{nil, nil, decode(r, "7699a4fdd6b8b6908a344f73b8f05c8e1400f7253f544602c442ff5c65504b24")},
+		tree.GetParkedNodes())
+}
+
+func decode(r *require.Assertions, hexString string) []byte {
+	hash, err := hex.DecodeString(hexString)
+	r.NoError(err)
+	return hash
+}

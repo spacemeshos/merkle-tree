@@ -195,6 +195,20 @@ func (t *Tree) RootAndProof() ([]byte, [][]byte) {
 	return ephemeralNode.value, ephemeralProof
 }
 
+func (t *Tree) GetParkedNodes() [][]byte {
+	var ret [][]byte
+	layer := t.baseLayer
+	for {
+		ret = append(ret, layer.parking.value)
+		if layer.next == nil {
+			break
+		} else {
+			layer = layer.next
+		}
+	}
+	return ret
+}
+
 // calcEphemeralParent calculates the parent using the layer parking and ephemeralNode. When one of those is missing it
 // uses PaddingValue to pad. It returns the actual nodes used along with the parent.
 func (t *Tree) calcEphemeralParent(parking, ephemeralNode node) (parent, lChild, rChild node) {
