@@ -13,12 +13,18 @@ const MaxUint = ^uint(0)
 // to expectedRoot.
 func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
 	hash HashFunc) (bool, error) {
+	valid, _, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, proof, expectedRoot, hash)
+	return valid, err
+}
+
+func ValidatePartialTreeWithParkingSnapshots(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
+	hash HashFunc) (bool, [][][]byte, error) {
 	v, err := newValidator(leafIndices, leaves, proof, hash)
 	if err != nil {
-		return false, err
+		return false, nil, err
 	}
-	root, err := v.calcRoot(MaxUint)
-	return bytes.Equal(root, expectedRoot), err
+	root, parkingSnapshots, err := v.calcRoot(MaxUint)
+	return bytes.Equal(root, expectedRoot), parkingSnapshots, err
 }
 
 func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc) (*validator, error) {
@@ -47,12 +53,14 @@ type validator struct {
 	hash       HashFunc
 }
 
-func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
+func (v *validator) calcRoot(stopAtLayer uint) (root []byte, parkingSnapshots [][][]byte, err error) {
 	activePos, activeNode, err := v.leaves.next()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var lChild, rChild, sibling []byte
+	var subTreeSnapshots [][][]byte
+	parkingSnapshots = [][][]byte{nil}
 	for {
 		if activePos.height == stopAtLayer {
 			break
@@ -61,9 +69,9 @@ func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
 		// sibling is the next node in the proof.
 		nextLeafPos, _, err := v.leaves.peek()
 		if err == nil && activePos.sibling().isAncestorOf(nextLeafPos) {
-			sibling, err = v.calcRoot(activePos.height)
+			sibling, subTreeSnapshots, err = v.calcRoot(activePos.height)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		} else {
 			sibling, err = v.proofNodes.next()
@@ -73,11 +81,24 @@ func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
 		}
 		if activePos.isRightSibling() {
 			lChild, rChild = sibling, activeNode
+			addToAll(parkingSnapshots, lChild)
 		} else {
 			lChild, rChild = activeNode, sibling
+			addToAll(parkingSnapshots, nil)
+			if len(subTreeSnapshots) > 0 {
+				parkingSnapshots = append(parkingSnapshots, addToAll(subTreeSnapshots, activeNode)...)
+				subTreeSnapshots = nil
+			}
 		}
 		activeNode = v.hash(lChild, rChild)
 		activePos = activePos.parent()
 	}
-	return activeNode, nil
+	return activeNode, parkingSnapshots, nil
+}
+
+func addToAll(snapshots [][][]byte, node []byte) [][][]byte {
+	for i := 0; i < len(snapshots); i++ {
+		snapshots[i] = append(snapshots[i], node)
+	}
+	return snapshots
 }

@@ -1,6 +1,7 @@
 package merkle
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -58,7 +59,7 @@ func TestValidatePartialTreeMulti(t *testing.T) {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
 	}
-	root, proof := tree.RootAndProof() // 89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce, 05 fa ba
+	root, proof := tree.RootAndProof() // 89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce, 000 009 05 fa
 
 	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
 	req.NoError(err)
@@ -86,7 +87,7 @@ func TestValidatePartialTreeMulti2(t *testing.T) {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
 	}
-	root, proof := tree.RootAndProof() // 89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce, 05 fa ba
+	root, proof := tree.RootAndProof() // 89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce, 009 05 fa
 
 	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
 	req.NoError(err)
@@ -97,6 +98,37 @@ func TestValidatePartialTreeMulti2(t *testing.T) {
 	|           ba94                    633b           |
 	|     cb59       .0094.       bd50       .fa67.    |
 	| =0000==0100= 0200  0300 =0400=.0500. 0600  0700  |
+	***************************************************/
+}
+
+func TestValidatePartialTreeParkingSnapshots(t *testing.T) {
+	req := require.New(t)
+
+	leafIndices := []uint64{4, 6}
+	leaves := [][]byte{
+		NewNodeFromUint64(4),
+		NewNodeFromUint64(6),
+	}
+	tree := NewProvingTree(setOf(leafIndices...))
+	for i := uint64(0); i < 8; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		req.NoError(err)
+	}
+	root, proof := tree.RootAndProof() // 89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce, 05 07 ba
+
+	valid, parkingSnapshots, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, proof, root, GetSha256Parent)
+	req.NoError(err)
+	req.True(valid, "Proof should be valid, but isn't")
+	req.Equal(
+		"[[  ba94ffe7edabf26ef12736f8eb5ce74d15bedb6af61444ae2906e926b1a95084] "+
+			"[ bd50456d5ad175ae99a1612a53ca229124b65d3eaabd9ff9c7ab979a385cf6b3 ba94ffe7edabf26ef12736f8eb5ce74d15bedb6af61444ae2906e926b1a95084]]",
+		fmt.Sprintf("%x", parkingSnapshots))
+
+	/***************************************************
+	|                       89a0                       |
+	|          .ba94.                   633b           |
+	|     cb59        0094        bd50        fa67     |
+	|  0000  0100  0200  0300 =0400=.0500.=0600=.0700. |
 	***************************************************/
 }
 
@@ -211,6 +243,11 @@ func BenchmarkValidatePartialTree(b *testing.B) {
 		req.True(valid, "Proof should be valid, but isn't")
 	}
 
+	/*
+		BenchmarkValidatePartialTree-8   	   20000	     62139 ns/op
+		BenchmarkValidatePartialTree-8   	   20000	     73310 ns/op +18% due to collecting parking snapshots
+	*/
+
 	/***************************************************
 	|                       89a0                       |
 	|           ba94                    633b           |
@@ -259,7 +296,7 @@ func TestValidator_calcRoot(t *testing.T) {
 		hash:       nil,
 	}
 
-	root, err := v.calcRoot(0)
+	root, _, err := v.calcRoot(0)
 
 	r.Error(err)
 	r.Equal("no more items", err.Error())
