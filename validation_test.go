@@ -239,13 +239,14 @@ func BenchmarkValidatePartialTree(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
+		//valid, _, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, proof, root, GetSha256Parent)
 		req.NoError(err)
 		req.True(valid, "Proof should be valid, but isn't")
 	}
 
 	/*
-		BenchmarkValidatePartialTree-8   	   20000	     62139 ns/op
-		BenchmarkValidatePartialTree-8   	   20000	     73310 ns/op +18% due to collecting parking snapshots
+		BenchmarkValidatePartialTree-8   	   20000	     63520 ns/op
+		BenchmarkValidatePartialTree-8   	   20000	     73310 ns/op +15% due to collecting parking snapshots
 	*/
 
 	/***************************************************
@@ -296,7 +297,7 @@ func TestValidator_calcRoot(t *testing.T) {
 		hash:       nil,
 	}
 
-	root, _, err := v.calcRoot(0)
+	root, _, err := v.calcRoot(0, false)
 
 	r.Error(err)
 	r.Equal("no more items", err.Error())

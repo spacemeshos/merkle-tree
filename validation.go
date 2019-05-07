@@ -13,13 +13,20 @@ const MaxUint = ^uint(0)
 // to expectedRoot.
 func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
 	hash HashFunc) (bool, error) {
-	valid, _, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, proof, expectedRoot, hash)
-	return valid, err
+	v, err := newValidator(leafIndices, leaves, proof, hash, false)
+	if err != nil {
+		return false, err
+	}
+	root, _, err := v.calcRoot(MaxUint)
+	return bytes.Equal(root, expectedRoot), err
 }
 
+// ValidatePartialTree uses leafIndices, leaves and proof to calculate the merkle root of the tree and then compares it
+// to expectedRoot. Additionally, it reconstructs the parked nodes when each proven leaf was originally added to the
+// tree and returns a list of snapshots. This method is ~15% slower than ValidatePartialTree.
 func ValidatePartialTreeWithParkingSnapshots(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
 	hash HashFunc) (bool, []ParkingSnapshot, error) {
-	v, err := newValidator(leafIndices, leaves, proof, hash)
+	v, err := newValidator(leafIndices, leaves, proof, hash, true)
 	if err != nil {
 		return false, nil, err
 	}
@@ -27,7 +34,7 @@ func ValidatePartialTreeWithParkingSnapshots(leafIndices []uint64, leaves, proof
 	return bytes.Equal(root, expectedRoot), parkingSnapshots, err
 }
 
-func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc) (*validator, error) {
+func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc, storeSnapshots bool) (*validator, error) {
 	if len(leafIndices) != len(leaves) {
 		return nil, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves),
 			len(leafIndices))
@@ -44,13 +51,14 @@ func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc) (
 	proofNodes := &proofIterator{proof}
 	leafIt := &leafIterator{leafIndices, leaves}
 
-	return &validator{leaves: leafIt, proofNodes: proofNodes, hash: hash}, nil
+	return &validator{leaves: leafIt, proofNodes: proofNodes, hash: hash, storeSnapshots: storeSnapshots}, nil
 }
 
 type validator struct {
-	leaves     *leafIterator
-	proofNodes *proofIterator
-	hash       HashFunc
+	leaves         *leafIterator
+	proofNodes     *proofIterator
+	hash           HashFunc
+	storeSnapshots bool
 }
 
 type ParkingSnapshot [][]byte
@@ -61,8 +69,10 @@ func (v *validator) calcRoot(stopAtLayer uint) ([]byte, []ParkingSnapshot, error
 		return nil, nil, err
 	}
 	var lChild, rChild, sibling []byte
-	var subTreeSnapshots []ParkingSnapshot
-	parkingSnapshots := []ParkingSnapshot{nil}
+	var parkingSnapshots, subTreeSnapshots []ParkingSnapshot
+	if v.storeSnapshots {
+		parkingSnapshots = []ParkingSnapshot{nil}
+	}
 	for {
 		if activePos.height == stopAtLayer {
 			break
