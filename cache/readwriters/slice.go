@@ -1,13 +1,15 @@
-package cache
+package readwriters
 
-import "io"
+import (
+	"io"
+)
+
+const NodeSize = 32
 
 type SliceReadWriter struct {
 	slice    [][]byte
 	position uint64
 }
-
-var _ LayerReadWriter = &SliceReadWriter{}
 
 func (s *SliceReadWriter) Width() (uint64, error) {
 	return uint64(len(s.slice)), nil

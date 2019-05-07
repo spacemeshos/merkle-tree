@@ -1,8 +1,10 @@
 package cache
 
+import "github.com/spacemeshos/merkle-tree/cache/readwriters"
+
 func MakeSliceReadWriterFactory() LayerFactory {
 	return func(layerHeight uint) (LayerReadWriter, error) {
-		return &SliceReadWriter{}, nil
+		return &readwriters.SliceReadWriter{}, nil
 	}
 }
 

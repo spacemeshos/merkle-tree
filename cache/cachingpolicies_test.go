@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"github.com/spacemeshos/merkle-tree/cache/readwriters"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -79,7 +80,7 @@ func TestMakeMemoryReadWriterFactoryForLayers(t *testing.T) {
 
 func TestMakeSpecificLayerFactory(t *testing.T) {
 	r := require.New(t)
-	readWriter := &SliceReadWriter{}
+	readWriter := &readwriters.SliceReadWriter{}
 	cacheWriter := NewWriter(
 		SpecificLayersPolicy(map[uint]bool{1: true}),
 		MakeSpecificLayersFactory(map[uint]LayerReadWriter{1: readWriter}),

@@ -3,6 +3,7 @@ package cache
 import (
 	"errors"
 	"fmt"
+	"github.com/spacemeshos/merkle-tree/cache/readwriters"
 	"math"
 )
 
@@ -119,6 +120,9 @@ type LayerReadWriter interface {
 	LayerReader
 	LayerWriter
 }
+
+var _ LayerReadWriter = &readwriters.FileReadWriter{}
+var _ LayerReadWriter = &readwriters.SliceReadWriter{}
 
 type LayerReader interface {
 	Seek(index uint64) error
