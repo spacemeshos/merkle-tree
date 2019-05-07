@@ -44,12 +44,10 @@ func (c *Writer) SetHash(hashFunc func(lChild, rChild []byte) []byte) {
 }
 
 func (c *Writer) GetReader() (*Reader, error) {
-	err := c.validateStructure()
-	if err != nil {
+	if err := c.flush(); err != nil {
 		return nil, err
 	}
-	err = c.flush()
-	if err != nil {
+	if err := c.validateStructure(); err != nil {
 		return nil, err
 	}
 	return &Reader{c.cache}, nil
