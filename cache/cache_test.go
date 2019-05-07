@@ -14,7 +14,7 @@ var _ LayerReadWriter = &widthReader{}
 
 func (r widthReader) Seek(index uint64) error            { return nil }
 func (r widthReader) ReadNext() ([]byte, error)          { return nil, someError }
-func (r widthReader) Width() uint64                      { return r.width }
+func (r widthReader) Width() (uint64, error)             { return r.width, nil }
 func (r widthReader) Append(p []byte) (n int, err error) { panic("implement me") }
 func (r widthReader) Flush() error                       { return nil }
 

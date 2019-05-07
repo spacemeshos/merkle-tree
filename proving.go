@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"errors"
+	"fmt"
 	"github.com/spacemeshos/merkle-tree/cache"
 	"io"
 )
@@ -15,7 +16,11 @@ func GenerateProof(
 
 	provenLeafIndexIt := newPositionsIterator(provenLeafIndices)
 	skipPositions := &positionsStack{}
-	rootHeight := cache.RootHeightFromWidth(treeCache.GetLayerReader(0).Width())
+	width, err := treeCache.GetLayerReader(0).Width()
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	rootHeight := cache.RootHeightFromWidth(width)
 
 	for { // Process proven leaves:
 
@@ -27,7 +32,10 @@ func GenerateProof(
 		}
 
 		// Get indices for the bottom left corner of the subtree and its root, as well as the bottom layer's width.
-		currentPos, subtreeStart, width := subtreeDefinition(treeCache, nextProvenLeafPos)
+		currentPos, subtreeStart, width, err := subtreeDefinition(treeCache, nextProvenLeafPos)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 
 		// Prepare list of leaves to prove in the subtree.
 		leavesToProve := provenLeafIndexIt.batchPop(subtreeStart.index + width)
@@ -176,9 +184,13 @@ func calcNode(c *cache.Reader, nodePos position) ([]byte, error) {
 
 	var paddingValue []byte
 	width := uint64(1) << (nodePos.height - subtreeStart.height)
-	if reader.Width() < subtreeStart.index+width {
+	readerWidth, err := reader.Width()
+	if err != nil {
+		return nil, fmt.Errorf("while getting reader width: %v", err)
+	}
+	if readerWidth < subtreeStart.index+width {
 		paddingPos := position{
-			index:  reader.Width(),
+			index:  readerWidth,
 			height: subtreeStart.height,
 		}
 		paddingValue, err = calcNode(c, paddingPos)
@@ -200,10 +212,14 @@ func calcNode(c *cache.Reader, nodePos position) ([]byte, error) {
 // subtreeDefinition returns the definition (firstLeaf and root positions, width) for the minimal subtree whose
 // base layer includes p and where the root is on a cached layer. If no cached layer exists above the base layer, the
 // subtree will reach the root of the original tree.
-func subtreeDefinition(c *cache.Reader, p position) (root, firstLeaf position, width uint64) {
+func subtreeDefinition(c *cache.Reader, p position) (root, firstLeaf position, width uint64, err error) {
 	// maxRootHeight represents the max height of the tree, based on the width of base layer. This is used to prevent an
 	// infinite loop.
-	maxRootHeight := cache.RootHeightFromWidth(c.GetLayerReader(p.height).Width())
+	width, err = c.GetLayerReader(p.height).Width()
+	if err != nil {
+		return position{}, position{}, 0, err
+	}
+	maxRootHeight := cache.RootHeightFromWidth(width)
 	for root = p.parent(); root.height < maxRootHeight; root = root.parent() {
 		if layer := c.GetLayerReader(root.height); layer != nil {
 			break
@@ -214,5 +230,5 @@ func subtreeDefinition(c *cache.Reader, p position) (root, firstLeaf position, w
 		index:  root.index << subtreeHeight,
 		height: p.height,
 	}
-	return root, firstLeaf, 1 << subtreeHeight
+	return root, firstLeaf, 1 << subtreeHeight, err
 }

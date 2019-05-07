@@ -148,10 +148,10 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(10), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(5), cacheReader.GetLayerReader(1).Width())
-	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
-	r.Equal(uint64(1), cacheReader.GetLayerReader(3).Width())
+	assertWidth(r, 10, cacheReader.GetLayerReader(0))
+	assertWidth(r, 5, cacheReader.GetLayerReader(1))
+	assertWidth(r, 2, cacheReader.GetLayerReader(2))
+	assertWidth(r, 1, cacheReader.GetLayerReader(3))
 
 	cacheRoot, err := cacheReader.GetLayerReader(3).ReadNext()
 	r.NoError(err)
@@ -167,6 +167,12 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 	var proof nodes
 	proof = tree.Proof()
 	r.EqualValues(expectedProof, proof)
+}
+
+func assertWidth(r *require.Assertions, expectedWidth int, layerReader cache.LayerReader) {
+	width, err := layerReader.Width()
+	r.NoError(err)
+	r.Equal(uint64(expectedWidth), width)
 }
 
 func BenchmarkNewTree(b *testing.B) {
@@ -335,10 +341,10 @@ func TestNewCachingTree(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
-	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
-	r.Equal(uint64(1), cacheReader.GetLayerReader(3).Width())
+	assertWidth(r, 8, cacheReader.GetLayerReader(0))
+	assertWidth(r, 4, cacheReader.GetLayerReader(1))
+	assertWidth(r, 2, cacheReader.GetLayerReader(2))
+	assertWidth(r, 1, cacheReader.GetLayerReader(3))
 	cacheRoot, err := cacheReader.GetLayerReader(3).ReadNext()
 	r.NoError(err)
 	r.Equal(cacheRoot, expectedRoot)

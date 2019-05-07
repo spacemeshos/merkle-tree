@@ -85,14 +85,24 @@ func (c *cache) validateStructure() error {
 	if _, found := c.layers[0]; !found {
 		return errors.New("reader for base layer must be included")
 	}
-	width := c.layers[0].Width()
+	width, err := c.layers[0].Width()
+	if err != nil {
+		return fmt.Errorf("while getting base layer width: %v", err)
+	}
 	if width == 0 {
 		return errors.New("base layer cannot be empty")
 	}
 	height := RootHeightFromWidth(width)
 	for i := uint(0); i < height; i++ {
-		if _, found := c.layers[i]; found && c.layers[i].Width() != width {
-			return fmt.Errorf("reader at layer %d has width %d instead of %d", i, c.layers[i].Width(), width)
+		layer, found := c.layers[i]
+		if found {
+			iWidth, err := layer.Width()
+			if err != nil {
+				return fmt.Errorf("failed to get width for layer %d: %v", i, err)
+			}
+			if iWidth != width {
+				return fmt.Errorf("reader at layer %d has width %d instead of %d", i, iWidth, width)
+			}
 		}
 		width >>= 1
 	}
@@ -113,7 +123,7 @@ type LayerReadWriter interface {
 type LayerReader interface {
 	Seek(index uint64) error
 	ReadNext() ([]byte, error)
-	Width() uint64
+	Width() (uint64, error)
 }
 
 type LayerWriter interface {
