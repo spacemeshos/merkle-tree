@@ -30,7 +30,7 @@ func TestGenerateProof(t *testing.T) {
 
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -80,7 +80,7 @@ func BenchmarkGenerateProof(b *testing.B) {
 		leavesToProve[uint64(i)*400000] = true
 	}
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -122,7 +122,7 @@ func TestGenerateProofWithRoot(t *testing.T) {
 
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -164,7 +164,7 @@ func TestGenerateProofWithoutCache(t *testing.T) {
 	r := require.New(t)
 	leavesToProve := setOf(0, 4, 7)
 	cacheWriter := cache.NewWriter(cache.SpecificLayersPolicy(map[uint]bool{0: true}), cache.MakeSliceReadWriterFactory())
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -202,7 +202,7 @@ func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 	cacheWriter := cache.NewWriter(
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 2: true}),
 		cache.MakeSliceReadWriterFactory())
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -241,7 +241,7 @@ func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 	cacheWriter := cache.NewWriter(
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true}),
 		cache.MakeSliceReadWriterFactory())
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -280,7 +280,7 @@ func TestGenerateProofWithSingleLayerCache3(t *testing.T) {
 	cacheWriter := cache.NewWriter(
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true}),
 		cache.MakeSliceReadWriterFactory())
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -313,7 +313,7 @@ func TestGenerateProofUnbalanced(t *testing.T) {
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true, 2: true}),
 		cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -351,7 +351,7 @@ func TestGenerateProofUnbalanced2(t *testing.T) {
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true, 2: true}),
 		cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -389,7 +389,7 @@ func TestGenerateProofUnbalanced3(t *testing.T) {
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true, 2: true}),
 		cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()

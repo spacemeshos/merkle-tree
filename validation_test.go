@@ -27,7 +27,8 @@ func TestValidatePartialTreeForRealz(t *testing.T) {
 
 	leafIndices := []uint64{4}
 	leaves := [][]byte{NewNodeFromUint64(4)}
-	tree := NewProvingTree(setOf(leafIndices...))
+	tree, err := NewProvingTree(setOf(leafIndices...))
+	req.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -54,7 +55,8 @@ func TestValidatePartialTreeMulti(t *testing.T) {
 		NewNodeFromUint64(1),
 		NewNodeFromUint64(4),
 	}
-	tree := NewProvingTree(setOf(leafIndices...))
+	tree, err := NewProvingTree(setOf(leafIndices...))
+	req.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -82,7 +84,8 @@ func TestValidatePartialTreeMulti2(t *testing.T) {
 		NewNodeFromUint64(1),
 		NewNodeFromUint64(4),
 	}
-	tree := NewProvingTree(setOf(leafIndices...))
+	tree, err := NewProvingTree(setOf(leafIndices...))
+	req.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -109,7 +112,8 @@ func TestValidatePartialTreeParkingSnapshots(t *testing.T) {
 		NewNodeFromUint64(4),
 		NewNodeFromUint64(6),
 	}
-	tree := NewProvingTree(setOf(leafIndices...))
+	tree, err := NewProvingTree(setOf(leafIndices...))
+	req.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -141,7 +145,8 @@ func TestValidatePartialTreeMultiUnbalanced(t *testing.T) {
 		NewNodeFromUint64(4),
 		NewNodeFromUint64(7),
 	}
-	tree := NewProvingTree(setOf(leafIndices...))
+	tree, err := NewProvingTree(setOf(leafIndices...))
+	req.NoError(err)
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -172,7 +177,8 @@ func TestValidatePartialTreeMultiUnbalanced2(t *testing.T) {
 		NewNodeFromUint64(7),
 		NewNodeFromUint64(9),
 	}
-	tree := NewProvingTree(setOf(leafIndices...))
+	tree, err := NewProvingTree(setOf(leafIndices...))
+	req.NoError(err)
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -200,7 +206,8 @@ func TestValidatePartialTreeUnbalanced(t *testing.T) {
 	leaves := [][]byte{
 		NewNodeFromUint64(9),
 	}
-	tree := NewProvingTree(setOf(leafIndices...))
+	tree, err := NewProvingTree(setOf(leafIndices...))
+	req.NoError(err)
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -229,7 +236,8 @@ func BenchmarkValidatePartialTree(b *testing.B) {
 	for _, i := range leafIndices {
 		leaves = append(leaves, NewNodeFromUint64(i))
 	}
-	tree := NewProvingTree(setOf(leafIndices...))
+	tree, err := NewProvingTree(setOf(leafIndices...))
+	req.NoError(err)
 	for i := uint64(0); i < 1<<23; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		req.NoError(err)
@@ -292,12 +300,13 @@ func TestValidatePartialTreeErrors(t *testing.T) {
 func TestValidator_calcRoot(t *testing.T) {
 	r := require.New(t)
 	v := validator{
-		leaves:     &leafIterator{},
-		proofNodes: nil,
-		hash:       nil,
+		leaves:         &leafIterator{},
+		proofNodes:     nil,
+		hash:           nil,
+		storeSnapshots: false,
 	}
 
-	root, _, err := v.calcRoot(0, false)
+	root, _, err := v.calcRoot(0)
 
 	r.Error(err)
 	r.Equal("no more items", err.Error())

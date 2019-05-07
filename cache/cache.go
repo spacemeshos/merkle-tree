@@ -26,13 +26,17 @@ func (c *Writer) SetLayer(layerHeight uint, rw LayerReadWriter) {
 	c.layers[layerHeight] = rw
 }
 
-func (c *Writer) GetLayerWriter(layerHeight uint) LayerWriter {
+func (c *Writer) GetLayerWriter(layerHeight uint) (LayerWriter, error) {
 	layerReadWriter, found := c.layers[layerHeight]
 	if !found && c.shouldCacheLayer(layerHeight) {
-		layerReadWriter = c.generateLayer(layerHeight)
+		var err error
+		layerReadWriter, err = c.generateLayer(layerHeight)
+		if err != nil {
+			return nil, err
+		}
 		c.layers[layerHeight] = layerReadWriter
 	}
-	return layerReadWriter
+	return layerReadWriter, nil
 }
 
 func (c *Writer) SetHash(hashFunc func(lChild, rChild []byte) []byte) {
@@ -87,7 +91,7 @@ func (c *cache) validateStructure() error {
 
 type CachingPolicy func(layerHeight uint) (shouldCacheLayer bool)
 
-type LayerFactory func(layerHeight uint) LayerReadWriter
+type LayerFactory func(layerHeight uint) (LayerReadWriter, error)
 
 // LayerReadWriter is a combined reader-writer. Note that the Seek() method only belongs to the LayerReader interface
 // and does not affect the LayerWriter.

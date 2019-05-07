@@ -95,11 +95,14 @@ func traverseSubtree(leafReader cache.LayerReader, width uint64, hash HashFunc, 
 	externalPadding []byte) (root []byte, proof, provenLeaves [][]byte, err error) {
 
 	shouldUseExternalPadding := externalPadding != nil
-	t := NewTreeBuilder().
+	t, err := NewTreeBuilder().
 		WithHashFunc(hash).
 		WithLeavesToProve(leavesToProve).
 		WithMinHeight(cache.RootHeightFromWidth(width)). // This ensures the correct size tree, even if padding is needed.
 		Build()
+	if err != nil {
+		return nil, nil, nil, errors.New("while building a tree: " + err.Error())
+	}
 	for i := uint64(0); i < width; i++ {
 		leaf, err := leafReader.ReadNext()
 		if err == io.EOF {

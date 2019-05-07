@@ -24,7 +24,8 @@ import (
 
 func TestNewTree(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree()
+	tree, err := NewTree()
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -46,7 +47,8 @@ func concatLeaves(lChild, rChild []byte) []byte {
 
 func TestNewTreeWithMinHeightEqual(t *testing.T) {
 	r := require.New(t)
-	tree := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(3).Build()
+	tree, err := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(3).Build()
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -58,7 +60,8 @@ func TestNewTreeWithMinHeightEqual(t *testing.T) {
 
 func TestNewTreeWithMinHeightGreater(t *testing.T) {
 	r := require.New(t)
-	tree := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(4).Build()
+	tree, err := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(4).Build()
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -71,7 +74,8 @@ func TestNewTreeWithMinHeightGreater(t *testing.T) {
 
 func TestNewTreeWithMinHeightGreater2(t *testing.T) {
 	r := require.New(t)
-	tree := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(5).Build()
+	tree, err := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(5).Build()
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -84,7 +88,8 @@ func TestNewTreeWithMinHeightGreater2(t *testing.T) {
 
 func TestNewTreeUnbalanced(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree()
+	tree, err := NewTree()
+	r.NoError(err)
 	for i := uint64(0); i < 9; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -96,7 +101,8 @@ func TestNewTreeUnbalanced(t *testing.T) {
 
 func TestNewTreeUnbalanced2(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree()
+	tree, err := NewTree()
+	r.NoError(err)
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -108,7 +114,8 @@ func TestNewTreeUnbalanced2(t *testing.T) {
 
 func TestNewTreeUnbalanced3(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree()
+	tree, err := NewTree()
+	r.NoError(err)
 	for i := uint64(0); i < 15; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -125,10 +132,11 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, err := NewTreeBuilder().
 		WithLeavesToProve(leavesToProve).
 		WithCacheWriter(cacheWriter).
 		Build()
+	r.NoError(err)
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -163,7 +171,7 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 
 func BenchmarkNewTree(b *testing.B) {
 	var size uint64 = 1 << 28
-	tree := NewTree()
+	tree, _ := NewTree()
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -179,7 +187,7 @@ func BenchmarkNewTree(b *testing.B) {
 func BenchmarkNewTreeSmall(b *testing.B) {
 	var size uint64 = 1 << 23
 	start := time.Now()
-	tree := NewTree()
+	tree, _ := NewTree()
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -191,7 +199,7 @@ func BenchmarkNewTreeSmall(b *testing.B) {
 
 func BenchmarkNewTreeNoHashing(b *testing.B) {
 	var size uint64 = 1 << 28
-	tree := NewTree()
+	tree, _ := NewTree()
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -216,7 +224,8 @@ func BenchmarkNewTreeNoHashing(b *testing.B) {
 
 func TestNewProvingTree(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree(setOf(4))
+	tree, err := NewProvingTree(setOf(4))
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -243,7 +252,8 @@ func TestNewProvingTree(t *testing.T) {
 
 func TestNewProvingTreeMultiProof(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree(setOf(1, 4))
+	tree, err := NewProvingTree(setOf(1, 4))
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -271,7 +281,8 @@ func TestNewProvingTreeMultiProof(t *testing.T) {
 
 func TestNewProvingTreeMultiProof2(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree(setOf(0, 1, 4))
+	tree, err := NewProvingTree(setOf(0, 1, 4))
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -311,7 +322,8 @@ func NewNodeFromHex(s string) ([]byte, error) {
 func TestNewCachingTree(t *testing.T) {
 	r := require.New(t)
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
-	tree := NewCachingTree(cacheWriter)
+	tree, err := NewCachingTree(cacheWriter)
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -338,7 +350,7 @@ func BenchmarkNewCachingTreeSmall(b *testing.B) {
 	var size uint64 = 1 << 23
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(7), cache.MakeSliceReadWriterFactory())
 	start := time.Now()
-	tree := NewCachingTree(cacheWriter)
+	tree, _ := NewCachingTree(cacheWriter)
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -385,7 +397,8 @@ func TestEmptyNode(t *testing.T) {
 func TestTree_GetParkedNodes(t *testing.T) {
 	r := require.New(t)
 
-	tree := NewTreeBuilder().Build()
+	tree, err := NewTreeBuilder().Build()
+	r.NoError(err)
 
 	r.NoError(tree.AddLeaf([]byte{0}))
 	r.EqualValues(
