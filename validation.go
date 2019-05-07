@@ -18,7 +18,7 @@ func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedR
 }
 
 func ValidatePartialTreeWithParkingSnapshots(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
-	hash HashFunc) (bool, [][][]byte, error) {
+	hash HashFunc) (bool, []ParkingSnapshot, error) {
 	v, err := newValidator(leafIndices, leaves, proof, hash)
 	if err != nil {
 		return false, nil, err
@@ -53,14 +53,16 @@ type validator struct {
 	hash       HashFunc
 }
 
-func (v *validator) calcRoot(stopAtLayer uint) (root []byte, parkingSnapshots [][][]byte, err error) {
+type ParkingSnapshot [][]byte
+
+func (v *validator) calcRoot(stopAtLayer uint) ([]byte, []ParkingSnapshot, error) {
 	activePos, activeNode, err := v.leaves.next()
 	if err != nil {
 		return nil, nil, err
 	}
 	var lChild, rChild, sibling []byte
-	var subTreeSnapshots [][][]byte
-	parkingSnapshots = [][][]byte{nil}
+	var subTreeSnapshots []ParkingSnapshot
+	parkingSnapshots := []ParkingSnapshot{nil}
 	for {
 		if activePos.height == stopAtLayer {
 			break
@@ -96,7 +98,7 @@ func (v *validator) calcRoot(stopAtLayer uint) (root []byte, parkingSnapshots []
 	return activeNode, parkingSnapshots, nil
 }
 
-func addToAll(snapshots [][][]byte, node []byte) [][][]byte {
+func addToAll(snapshots []ParkingSnapshot, node []byte) []ParkingSnapshot {
 	for i := 0; i < len(snapshots); i++ {
 		snapshots[i] = append(snapshots[i], node)
 	}
