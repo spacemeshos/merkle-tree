@@ -10,10 +10,13 @@ var someError = errors.New("some error")
 
 type widthReader struct{ width uint64 }
 
+var _ LayerReadWriter = &widthReader{}
+
 func (r widthReader) Seek(index uint64) error            { return nil }
 func (r widthReader) ReadNext() ([]byte, error)          { return nil, someError }
 func (r widthReader) Width() uint64                      { return r.width }
 func (r widthReader) Append(p []byte) (n int, err error) { panic("implement me") }
+func (r widthReader) Flush() error                       { return nil }
 
 func TestCache_ValidateStructure(t *testing.T) {
 	r := require.New(t)

@@ -434,31 +434,43 @@ var someError = errors.New("some error")
 
 type seekErrorReader struct{}
 
+var _ cache.LayerReadWriter = &seekErrorReader{}
+
 func (seekErrorReader) Seek(index uint64) error            { return someError }
 func (seekErrorReader) ReadNext() ([]byte, error)          { panic("implement me") }
 func (seekErrorReader) Width() uint64                      { return 3 }
 func (seekErrorReader) Append(p []byte) (n int, err error) { panic("implement me") }
+func (seekErrorReader) Flush() error                       { return nil }
 
 type readErrorReader struct{}
+
+var _ cache.LayerReadWriter = &readErrorReader{}
 
 func (readErrorReader) Seek(index uint64) error            { return nil }
 func (readErrorReader) ReadNext() ([]byte, error)          { return nil, someError }
 func (readErrorReader) Width() uint64                      { return 8 }
 func (readErrorReader) Append(p []byte) (n int, err error) { panic("implement me") }
+func (readErrorReader) Flush() error                       { return nil }
 
 type seekEOFReader struct{}
+
+var _ cache.LayerReadWriter = &seekEOFReader{}
 
 func (seekEOFReader) Seek(index uint64) error            { return io.EOF }
 func (seekEOFReader) ReadNext() ([]byte, error)          { panic("implement me") }
 func (seekEOFReader) Width() uint64                      { return 1 }
 func (seekEOFReader) Append(p []byte) (n int, err error) { panic("implement me") }
+func (seekEOFReader) Flush() error                       { return nil }
 
 type widthReader struct{ width uint64 }
+
+var _ cache.LayerReadWriter = &widthReader{}
 
 func (r widthReader) Seek(index uint64) error            { return nil }
 func (r widthReader) ReadNext() ([]byte, error)          { return nil, someError }
 func (r widthReader) Width() uint64                      { return r.width }
 func (r widthReader) Append(p []byte) (n int, err error) { panic("implement me") }
+func (r widthReader) Flush() error                       { return nil }
 
 func TestGetNode(t *testing.T) {
 	r := require.New(t)

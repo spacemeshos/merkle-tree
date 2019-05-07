@@ -48,7 +48,19 @@ func (c *Writer) GetReader() (*Reader, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = c.flush()
+	if err != nil {
+		return nil, err
+	}
 	return &Reader{c.cache}, nil
+}
+
+func (c *Writer) flush() error {
+	var lastErr error
+	for _, layer := range c.layers {
+		lastErr = layer.Flush()
+	}
+	return lastErr
 }
 
 type Reader struct {
@@ -108,6 +120,7 @@ type LayerReader interface {
 
 type LayerWriter interface {
 	Append(p []byte) (n int, err error)
+	Flush() error
 }
 
 func RootHeightFromWidth(width uint64) uint {

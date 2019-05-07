@@ -7,6 +7,8 @@ type SliceReadWriter struct {
 	position uint64
 }
 
+var _ LayerReadWriter = &SliceReadWriter{}
+
 func (s *SliceReadWriter) Width() uint64 {
 	return uint64(len(s.slice))
 }
@@ -32,4 +34,8 @@ func (s *SliceReadWriter) ReadNext() ([]byte, error) {
 func (s *SliceReadWriter) Append(p []byte) (n int, err error) {
 	s.slice = append(s.slice, p)
 	return len(p), nil
+}
+
+func (s *SliceReadWriter) Flush() error {
+	return nil
 }
