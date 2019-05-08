@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"github.com/spacemeshos/merkle-tree/cache/readwriters"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -20,11 +21,14 @@ func TestMakeMemoryReadWriterFactory(t *testing.T) {
 	reader = cacheReader.GetLayerReader(3)
 	r.Nil(reader)
 
-	writer := cacheWriter.GetLayerWriter(1)
+	writer, err := cacheWriter.GetLayerWriter(1)
+	r.NoError(err)
 	r.Nil(writer)
-	writer = cacheWriter.GetLayerWriter(2)
+	writer, err = cacheWriter.GetLayerWriter(2)
+	r.NoError(err)
 	r.NotNil(writer)
-	writer = cacheWriter.GetLayerWriter(3)
+	writer, err = cacheWriter.GetLayerWriter(3)
+	r.NoError(err)
 	r.NotNil(writer)
 
 	cacheReader, err = cacheWriter.GetReader()
@@ -53,11 +57,14 @@ func TestMakeMemoryReadWriterFactoryForLayers(t *testing.T) {
 	reader = cacheReader.GetLayerReader(3)
 	r.Nil(reader)
 
-	writer := cacheWriter.GetLayerWriter(1)
+	writer, err := cacheWriter.GetLayerWriter(1)
+	r.NoError(err)
 	r.NotNil(writer)
-	writer = cacheWriter.GetLayerWriter(2)
+	writer, err = cacheWriter.GetLayerWriter(2)
+	r.NoError(err)
 	r.Nil(writer)
-	writer = cacheWriter.GetLayerWriter(3)
+	writer, err = cacheWriter.GetLayerWriter(3)
+	r.NoError(err)
 	r.NotNil(writer)
 
 	cacheReader, err = cacheWriter.GetReader()
@@ -73,7 +80,7 @@ func TestMakeMemoryReadWriterFactoryForLayers(t *testing.T) {
 
 func TestMakeSpecificLayerFactory(t *testing.T) {
 	r := require.New(t)
-	readWriter := &SliceReadWriter{}
+	readWriter := &readwriters.SliceReadWriter{}
 	cacheWriter := NewWriter(
 		SpecificLayersPolicy(map[uint]bool{1: true}),
 		MakeSpecificLayersFactory(map[uint]LayerReadWriter{1: readWriter}),
@@ -88,9 +95,11 @@ func TestMakeSpecificLayerFactory(t *testing.T) {
 	reader = cacheReader.GetLayerReader(2)
 	r.Nil(reader)
 
-	writer := cacheWriter.GetLayerWriter(1)
+	writer, err := cacheWriter.GetLayerWriter(1)
+	r.NoError(err)
 	r.Equal(readWriter, writer)
-	writer = cacheWriter.GetLayerWriter(2)
+	writer, err = cacheWriter.GetLayerWriter(2)
+	r.NoError(err)
 	r.Nil(writer)
 
 	cacheReader, err = cacheWriter.GetReader()

@@ -13,15 +13,28 @@ const MaxUint = ^uint(0)
 // to expectedRoot.
 func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
 	hash HashFunc) (bool, error) {
-	v, err := newValidator(leafIndices, leaves, proof, hash)
+	v, err := newValidator(leafIndices, leaves, proof, hash, false)
 	if err != nil {
 		return false, err
 	}
-	root, err := v.calcRoot(MaxUint)
+	root, _, err := v.calcRoot(MaxUint)
 	return bytes.Equal(root, expectedRoot), err
 }
 
-func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc) (*validator, error) {
+// ValidatePartialTree uses leafIndices, leaves and proof to calculate the merkle root of the tree and then compares it
+// to expectedRoot. Additionally, it reconstructs the parked nodes when each proven leaf was originally added to the
+// tree and returns a list of snapshots. This method is ~15% slower than ValidatePartialTree.
+func ValidatePartialTreeWithParkingSnapshots(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
+	hash HashFunc) (bool, []ParkingSnapshot, error) {
+	v, err := newValidator(leafIndices, leaves, proof, hash, true)
+	if err != nil {
+		return false, nil, err
+	}
+	root, parkingSnapshots, err := v.calcRoot(MaxUint)
+	return bytes.Equal(root, expectedRoot), parkingSnapshots, err
+}
+
+func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc, storeSnapshots bool) (*validator, error) {
 	if len(leafIndices) != len(leaves) {
 		return nil, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves),
 			len(leafIndices))
@@ -38,21 +51,28 @@ func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc) (
 	proofNodes := &proofIterator{proof}
 	leafIt := &leafIterator{leafIndices, leaves}
 
-	return &validator{leaves: leafIt, proofNodes: proofNodes, hash: hash}, nil
+	return &validator{leaves: leafIt, proofNodes: proofNodes, hash: hash, storeSnapshots: storeSnapshots}, nil
 }
 
 type validator struct {
-	leaves     *leafIterator
-	proofNodes *proofIterator
-	hash       HashFunc
+	leaves         *leafIterator
+	proofNodes     *proofIterator
+	hash           HashFunc
+	storeSnapshots bool
 }
 
-func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
+type ParkingSnapshot [][]byte
+
+func (v *validator) calcRoot(stopAtLayer uint) ([]byte, []ParkingSnapshot, error) {
 	activePos, activeNode, err := v.leaves.next()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var lChild, rChild, sibling []byte
+	var parkingSnapshots, subTreeSnapshots []ParkingSnapshot
+	if v.storeSnapshots {
+		parkingSnapshots = []ParkingSnapshot{nil}
+	}
 	for {
 		if activePos.height == stopAtLayer {
 			break
@@ -61,9 +81,9 @@ func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
 		// sibling is the next node in the proof.
 		nextLeafPos, _, err := v.leaves.peek()
 		if err == nil && activePos.sibling().isAncestorOf(nextLeafPos) {
-			sibling, err = v.calcRoot(activePos.height)
+			sibling, subTreeSnapshots, err = v.calcRoot(activePos.height)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		} else {
 			sibling, err = v.proofNodes.next()
@@ -73,11 +93,24 @@ func (v *validator) calcRoot(stopAtLayer uint) ([]byte, error) {
 		}
 		if activePos.isRightSibling() {
 			lChild, rChild = sibling, activeNode
+			addToAll(parkingSnapshots, lChild)
 		} else {
 			lChild, rChild = activeNode, sibling
+			addToAll(parkingSnapshots, nil)
+			if len(subTreeSnapshots) > 0 {
+				parkingSnapshots = append(parkingSnapshots, addToAll(subTreeSnapshots, activeNode)...)
+				subTreeSnapshots = nil
+			}
 		}
 		activeNode = v.hash(lChild, rChild)
 		activePos = activePos.parent()
 	}
-	return activeNode, nil
+	return activeNode, parkingSnapshots, nil
+}
+
+func addToAll(snapshots []ParkingSnapshot, node []byte) []ParkingSnapshot {
+	for i := 0; i < len(snapshots); i++ {
+		snapshots[i] = append(snapshots[i], node)
+	}
+	return snapshots
 }

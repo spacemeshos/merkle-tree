@@ -38,10 +38,15 @@ type layer struct {
 }
 
 // ensureNextLayerExists creates the next layer if it doesn't exist.
-func (l *layer) ensureNextLayerExists(cacheWriter *cache.Writer) {
+func (l *layer) ensureNextLayerExists(cacheWriter *cache.Writer) error {
 	if l.next == nil {
-		l.next = newLayer(l.height+1, cacheWriter.GetLayerWriter(l.height+1))
+		writer, err := cacheWriter.GetLayerWriter(l.height + 1)
+		if err != nil {
+			return err
+		}
+		l.next = newLayer(l.height+1, writer)
 	}
+	return nil
 }
 
 func newLayer(height uint, cache cache.LayerWriter) *layer {
@@ -128,7 +133,10 @@ func (t *Tree) AddLeaf(value []byte) error {
 
 			l.parking.value = nil
 			n = parent
-			l.ensureNextLayerExists(t.cacheWriter)
+			err := l.ensureNextLayerExists(t.cacheWriter)
+			if err != nil {
+				return err
+			}
 			l = l.next
 		}
 	}
@@ -193,6 +201,20 @@ func (t *Tree) RootAndProof() ([]byte, [][]byte) {
 		}
 	}
 	return ephemeralNode.value, ephemeralProof
+}
+
+func (t *Tree) GetParkedNodes() [][]byte {
+	var ret [][]byte
+	layer := t.baseLayer
+	for {
+		ret = append(ret, layer.parking.value)
+		if layer.next == nil {
+			break
+		} else {
+			layer = layer.next
+		}
+	}
+	return ret
 }
 
 // calcEphemeralParent calculates the parent using the layer parking and ephemeralNode. When one of those is missing it

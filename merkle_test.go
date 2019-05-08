@@ -3,6 +3,7 @@ package merkle
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"github.com/spacemeshos/merkle-tree/cache"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -24,7 +25,8 @@ import (
 
 func TestNewTree(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree()
+	tree, err := NewTree()
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -46,7 +48,8 @@ func concatLeaves(lChild, rChild []byte) []byte {
 
 func TestNewTreeWithMinHeightEqual(t *testing.T) {
 	r := require.New(t)
-	tree := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(3).Build()
+	tree, err := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(3).Build()
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -58,7 +61,8 @@ func TestNewTreeWithMinHeightEqual(t *testing.T) {
 
 func TestNewTreeWithMinHeightGreater(t *testing.T) {
 	r := require.New(t)
-	tree := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(4).Build()
+	tree, err := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(4).Build()
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -71,7 +75,8 @@ func TestNewTreeWithMinHeightGreater(t *testing.T) {
 
 func TestNewTreeWithMinHeightGreater2(t *testing.T) {
 	r := require.New(t)
-	tree := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(5).Build()
+	tree, err := NewTreeBuilder().WithHashFunc(concatLeaves).WithMinHeight(5).Build()
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -84,7 +89,8 @@ func TestNewTreeWithMinHeightGreater2(t *testing.T) {
 
 func TestNewTreeUnbalanced(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree()
+	tree, err := NewTree()
+	r.NoError(err)
 	for i := uint64(0); i < 9; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -96,7 +102,8 @@ func TestNewTreeUnbalanced(t *testing.T) {
 
 func TestNewTreeUnbalanced2(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree()
+	tree, err := NewTree()
+	r.NoError(err)
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -108,7 +115,8 @@ func TestNewTreeUnbalanced2(t *testing.T) {
 
 func TestNewTreeUnbalanced3(t *testing.T) {
 	r := require.New(t)
-	tree := NewTree()
+	tree, err := NewTree()
+	r.NoError(err)
 	for i := uint64(0); i < 15; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -125,10 +133,11 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, err := NewTreeBuilder().
 		WithLeavesToProve(leavesToProve).
 		WithCacheWriter(cacheWriter).
 		Build()
+	r.NoError(err)
 	for i := uint64(0); i < 10; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -140,10 +149,10 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(10), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(5), cacheReader.GetLayerReader(1).Width())
-	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
-	r.Equal(uint64(1), cacheReader.GetLayerReader(3).Width())
+	assertWidth(r, 10, cacheReader.GetLayerReader(0))
+	assertWidth(r, 5, cacheReader.GetLayerReader(1))
+	assertWidth(r, 2, cacheReader.GetLayerReader(2))
+	assertWidth(r, 1, cacheReader.GetLayerReader(3))
 
 	cacheRoot, err := cacheReader.GetLayerReader(3).ReadNext()
 	r.NoError(err)
@@ -161,9 +170,15 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 	r.EqualValues(expectedProof, proof)
 }
 
+func assertWidth(r *require.Assertions, expectedWidth int, layerReader cache.LayerReader) {
+	width, err := layerReader.Width()
+	r.NoError(err)
+	r.Equal(uint64(expectedWidth), width)
+}
+
 func BenchmarkNewTree(b *testing.B) {
 	var size uint64 = 1 << 28
-	tree := NewTree()
+	tree, _ := NewTree()
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -179,7 +194,7 @@ func BenchmarkNewTree(b *testing.B) {
 func BenchmarkNewTreeSmall(b *testing.B) {
 	var size uint64 = 1 << 23
 	start := time.Now()
-	tree := NewTree()
+	tree, _ := NewTree()
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -191,7 +206,7 @@ func BenchmarkNewTreeSmall(b *testing.B) {
 
 func BenchmarkNewTreeNoHashing(b *testing.B) {
 	var size uint64 = 1 << 28
-	tree := NewTree()
+	tree, _ := NewTree()
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -216,7 +231,8 @@ func BenchmarkNewTreeNoHashing(b *testing.B) {
 
 func TestNewProvingTree(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree(setOf(4))
+	tree, err := NewProvingTree(setOf(4))
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -243,7 +259,8 @@ func TestNewProvingTree(t *testing.T) {
 
 func TestNewProvingTreeMultiProof(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree(setOf(1, 4))
+	tree, err := NewProvingTree(setOf(1, 4))
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -271,7 +288,8 @@ func TestNewProvingTreeMultiProof(t *testing.T) {
 
 func TestNewProvingTreeMultiProof2(t *testing.T) {
 	r := require.New(t)
-	tree := NewProvingTree(setOf(0, 1, 4))
+	tree, err := NewProvingTree(setOf(0, 1, 4))
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -311,7 +329,8 @@ func NewNodeFromHex(s string) ([]byte, error) {
 func TestNewCachingTree(t *testing.T) {
 	r := require.New(t)
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
-	tree := NewCachingTree(cacheWriter)
+	tree, err := NewCachingTree(cacheWriter)
+	r.NoError(err)
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
@@ -323,10 +342,10 @@ func TestNewCachingTree(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
-	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
-	r.Equal(uint64(1), cacheReader.GetLayerReader(3).Width())
+	assertWidth(r, 8, cacheReader.GetLayerReader(0))
+	assertWidth(r, 4, cacheReader.GetLayerReader(1))
+	assertWidth(r, 2, cacheReader.GetLayerReader(2))
+	assertWidth(r, 1, cacheReader.GetLayerReader(3))
 	cacheRoot, err := cacheReader.GetLayerReader(3).ReadNext()
 	r.NoError(err)
 	r.Equal(cacheRoot, expectedRoot)
@@ -338,7 +357,7 @@ func BenchmarkNewCachingTreeSmall(b *testing.B) {
 	var size uint64 = 1 << 23
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(7), cache.MakeSliceReadWriterFactory())
 	start := time.Now()
-	tree := NewCachingTree(cacheWriter)
+	tree, _ := NewCachingTree(cacheWriter)
 	for i := uint64(0); i < size; i++ {
 		_ = tree.AddLeaf(NewNodeFromUint64(i))
 	}
@@ -380,4 +399,99 @@ func TestEmptyNode(t *testing.T) {
 
 	r.True(emptyNode.IsEmpty())
 	r.False(emptyNode.onProvenPath)
+}
+
+func TestTree_GetParkedNodes(t *testing.T) {
+	r := require.New(t)
+
+	tree, err := NewTreeBuilder().Build()
+	r.NoError(err)
+
+	r.NoError(tree.AddLeaf([]byte{0}))
+	r.EqualValues(
+		[][]byte{{0}},
+		tree.GetParkedNodes())
+
+	r.NoError(tree.AddLeaf([]byte{1}))
+	r.EqualValues(
+		[][]byte{nil, decode(r, "b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2")},
+		tree.GetParkedNodes())
+
+	r.NoError(tree.AddLeaf([]byte{2}))
+	r.EqualValues(
+		[][]byte{{2}, decode(r, "b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2")},
+		tree.GetParkedNodes())
+
+	r.NoError(tree.AddLeaf([]byte{3}))
+	r.EqualValues(
+		[][]byte{nil, nil, decode(r, "7699a4fdd6b8b6908a344f73b8f05c8e1400f7253f544602c442ff5c65504b24")},
+		tree.GetParkedNodes())
+}
+
+func decode(r *require.Assertions, hexString string) []byte {
+	hash, err := hex.DecodeString(hexString)
+	r.NoError(err)
+	return hash
+}
+
+// Annotated example explaining how to use this package
+func ExampleTree() {
+	// First, we create a cache writer with caching policy and layer read-writer factory:
+	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
+
+	// We then initialize the tree:
+	tree, err := NewTreeBuilder().WithCacheWriter(cacheWriter).Build()
+	if err != nil {
+		fmt.Println("Error while building the tree:", err.Error())
+		return
+	}
+
+	// We add the leaves one-by-one:
+	for i := uint64(0); i < 8; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		if err != nil {
+			fmt.Println("Error while adding a leaf:", err.Error())
+			return
+		}
+	}
+
+	// After adding some leaves we can access the root of the tree:
+	fmt.Println(tree.Root()) // 89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce
+
+	// If we need to generate a proof, we could derive the proven leaves from the root. Here we create a static set:
+	leavesToProve := setOf(0, 4, 7)
+
+	// We get a cache reader from the cache writer:
+	cacheReader, err := cacheWriter.GetReader()
+	if err != nil {
+		fmt.Println("Error while getting cache reader:", err.Error())
+		return
+	}
+
+	// We pass the cache into GenerateProof along with the set of leaves to prove:
+	sortedProvenLeafIndices, provenLeaves, proof, err := GenerateProof(leavesToProve, cacheReader)
+	if err != nil {
+		fmt.Println("Error while getting generating proof:", err.Error())
+		return
+	}
+
+	// We now have access to a sorted list of proven leaves, the values of those leaves and the Merkle proof for them:
+	fmt.Println(sortedProvenLeafIndices) // 0 4 7
+	fmt.Println(nodes(provenLeaves)) // 0000 0400 0700
+	fmt.Println(nodes(proof)) // 0100 0094 0500 0600
+
+	// We can validate these values using ValidatePartialTree:
+	valid, err := ValidatePartialTree(sortedProvenLeafIndices, provenLeaves, proof, tree.Root(), GetSha256Parent)
+	if err != nil {
+		fmt.Println("Error while validating proof:", err.Error())
+		return
+	}
+	fmt.Println(valid) // true
+
+	/***************************************************
+	|                       89a0                       |
+	|           ba94                    633b           |
+	|     cb59       .0094.       bd50        fa67     |
+	| =0000=.0100. 0200  0300 =0400=.0500..0600.=0700= |
+	***************************************************/
 }

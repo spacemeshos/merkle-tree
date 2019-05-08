@@ -30,7 +30,7 @@ func TestGenerateProof(t *testing.T) {
 
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -45,9 +45,9 @@ func TestGenerateProof(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
-	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
+	assertWidth(r, 8, cacheReader.GetLayerReader(0))
+	assertWidth(r, 4, cacheReader.GetLayerReader(1))
+	assertWidth(r, 2, cacheReader.GetLayerReader(2))
 
 	var leaves, proof, expectedProof nodes
 	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
@@ -80,7 +80,7 @@ func BenchmarkGenerateProof(b *testing.B) {
 		leavesToProve[uint64(i)*400000] = true
 	}
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -92,7 +92,7 @@ func BenchmarkGenerateProof(b *testing.B) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(1)<<treeHeight, cacheReader.GetLayerReader(0).Width())
+	assertWidth(r, 1<<treeHeight, cacheReader.GetLayerReader(0))
 
 	var leaves, proof, expectedProof nodes
 
@@ -122,7 +122,7 @@ func TestGenerateProofWithRoot(t *testing.T) {
 
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -137,10 +137,10 @@ func TestGenerateProofWithRoot(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
-	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
-	r.Equal(uint64(1), cacheReader.GetLayerReader(3).Width())
+	assertWidth(r, 8, cacheReader.GetLayerReader(0))
+	assertWidth(r, 4, cacheReader.GetLayerReader(1))
+	assertWidth(r, 2, cacheReader.GetLayerReader(2))
+	assertWidth(r, 1, cacheReader.GetLayerReader(3))
 	cacheRoot, err := cacheReader.GetLayerReader(3).ReadNext()
 	r.NoError(err)
 	r.Equal(cacheRoot, expectedRoot)
@@ -164,7 +164,7 @@ func TestGenerateProofWithoutCache(t *testing.T) {
 	r := require.New(t)
 	leavesToProve := setOf(0, 4, 7)
 	cacheWriter := cache.NewWriter(cache.SpecificLayersPolicy(map[uint]bool{0: true}), cache.MakeSliceReadWriterFactory())
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -179,7 +179,7 @@ func TestGenerateProofWithoutCache(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
+	assertWidth(r, 8, cacheReader.GetLayerReader(0))
 
 	var leaves, proof, expectedProof nodes
 	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
@@ -202,7 +202,7 @@ func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 	cacheWriter := cache.NewWriter(
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 2: true}),
 		cache.MakeSliceReadWriterFactory())
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -217,8 +217,8 @@ func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(2), cacheReader.GetLayerReader(2).Width())
+	assertWidth(r, 8, cacheReader.GetLayerReader(0))
+	assertWidth(r, 2, cacheReader.GetLayerReader(2))
 
 	var leaves, proof, expectedProof nodes
 	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
@@ -241,7 +241,7 @@ func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 	cacheWriter := cache.NewWriter(
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true}),
 		cache.MakeSliceReadWriterFactory())
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -256,8 +256,8 @@ func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
+	assertWidth(r, 8, cacheReader.GetLayerReader(0))
+	assertWidth(r, 4, cacheReader.GetLayerReader(1))
 
 	var leaves, proof, expectedProof nodes
 	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
@@ -280,7 +280,7 @@ func TestGenerateProofWithSingleLayerCache3(t *testing.T) {
 	cacheWriter := cache.NewWriter(
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true}),
 		cache.MakeSliceReadWriterFactory())
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -295,8 +295,8 @@ func TestGenerateProofWithSingleLayerCache3(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(8), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(4), cacheReader.GetLayerReader(1).Width())
+	assertWidth(r, 8, cacheReader.GetLayerReader(0))
+	assertWidth(r, 4, cacheReader.GetLayerReader(1))
 
 	var proof, expectedProof nodes
 	_, _, proof, err = GenerateProof(leavesToProve, cacheReader)
@@ -313,7 +313,7 @@ func TestGenerateProofUnbalanced(t *testing.T) {
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true, 2: true}),
 		cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -325,9 +325,9 @@ func TestGenerateProofUnbalanced(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(7), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(3), cacheReader.GetLayerReader(1).Width())
-	r.Equal(uint64(1), cacheReader.GetLayerReader(2).Width())
+	assertWidth(r, 7, cacheReader.GetLayerReader(0))
+	assertWidth(r, 3, cacheReader.GetLayerReader(1))
+	assertWidth(r, 1, cacheReader.GetLayerReader(2))
 
 	var leaves, proof, expectedProof nodes
 	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
@@ -351,7 +351,7 @@ func TestGenerateProofUnbalanced2(t *testing.T) {
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true, 2: true}),
 		cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -363,9 +363,9 @@ func TestGenerateProofUnbalanced2(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(6), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(3), cacheReader.GetLayerReader(1).Width())
-	r.Equal(uint64(1), cacheReader.GetLayerReader(2).Width())
+	assertWidth(r, 6, cacheReader.GetLayerReader(0))
+	assertWidth(r, 3, cacheReader.GetLayerReader(1))
+	assertWidth(r, 1, cacheReader.GetLayerReader(2))
 
 	var leaves, proof, expectedProof nodes
 	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
@@ -389,7 +389,7 @@ func TestGenerateProofUnbalanced3(t *testing.T) {
 		cache.SpecificLayersPolicy(map[uint]bool{0: true, 1: true, 2: true}),
 		cache.MakeSliceReadWriterFactory())
 
-	tree := NewTreeBuilder().
+	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
 		Build()
@@ -401,9 +401,9 @@ func TestGenerateProofUnbalanced3(t *testing.T) {
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
 
-	r.Equal(uint64(7), cacheReader.GetLayerReader(0).Width())
-	r.Equal(uint64(3), cacheReader.GetLayerReader(1).Width())
-	r.Equal(uint64(1), cacheReader.GetLayerReader(2).Width())
+	assertWidth(r, 7, cacheReader.GetLayerReader(0))
+	assertWidth(r, 3, cacheReader.GetLayerReader(1))
+	assertWidth(r, 1, cacheReader.GetLayerReader(2))
 
 	var leaves, proof, expectedProof nodes
 	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
@@ -434,31 +434,43 @@ var someError = errors.New("some error")
 
 type seekErrorReader struct{}
 
+var _ cache.LayerReadWriter = &seekErrorReader{}
+
 func (seekErrorReader) Seek(index uint64) error            { return someError }
 func (seekErrorReader) ReadNext() ([]byte, error)          { panic("implement me") }
-func (seekErrorReader) Width() uint64                      { return 3 }
+func (seekErrorReader) Width() (uint64, error)             { return 3, nil }
 func (seekErrorReader) Append(p []byte) (n int, err error) { panic("implement me") }
+func (seekErrorReader) Flush() error                       { return nil }
 
 type readErrorReader struct{}
 
+var _ cache.LayerReadWriter = &readErrorReader{}
+
 func (readErrorReader) Seek(index uint64) error            { return nil }
 func (readErrorReader) ReadNext() ([]byte, error)          { return nil, someError }
-func (readErrorReader) Width() uint64                      { return 8 }
+func (readErrorReader) Width() (uint64, error)             { return 8, nil }
 func (readErrorReader) Append(p []byte) (n int, err error) { panic("implement me") }
+func (readErrorReader) Flush() error                       { return nil }
 
 type seekEOFReader struct{}
 
+var _ cache.LayerReadWriter = &seekEOFReader{}
+
 func (seekEOFReader) Seek(index uint64) error            { return io.EOF }
 func (seekEOFReader) ReadNext() ([]byte, error)          { panic("implement me") }
-func (seekEOFReader) Width() uint64                      { return 1 }
+func (seekEOFReader) Width() (uint64, error)             { return 1, nil }
 func (seekEOFReader) Append(p []byte) (n int, err error) { panic("implement me") }
+func (seekEOFReader) Flush() error                       { return nil }
 
 type widthReader struct{ width uint64 }
 
+var _ cache.LayerReadWriter = &widthReader{}
+
 func (r widthReader) Seek(index uint64) error            { return nil }
 func (r widthReader) ReadNext() ([]byte, error)          { return nil, someError }
-func (r widthReader) Width() uint64                      { return r.width }
+func (r widthReader) Width() (uint64, error)             { return r.width, nil }
 func (r widthReader) Append(p []byte) (n int, err error) { panic("implement me") }
+func (r widthReader) Flush() error                       { return nil }
 
 func TestGetNode(t *testing.T) {
 	r := require.New(t)

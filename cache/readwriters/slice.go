@@ -1,14 +1,18 @@
-package cache
+package readwriters
 
-import "io"
+import (
+	"io"
+)
+
+const NodeSize = 32
 
 type SliceReadWriter struct {
 	slice    [][]byte
 	position uint64
 }
 
-func (s *SliceReadWriter) Width() uint64 {
-	return uint64(len(s.slice))
+func (s *SliceReadWriter) Width() (uint64, error) {
+	return uint64(len(s.slice)), nil
 }
 
 func (s *SliceReadWriter) Seek(index uint64) error {
@@ -32,4 +36,8 @@ func (s *SliceReadWriter) ReadNext() ([]byte, error) {
 func (s *SliceReadWriter) Append(p []byte) (n int, err error) {
 	s.slice = append(s.slice, p)
 	return len(p), nil
+}
+
+func (s *SliceReadWriter) Flush() error {
+	return nil
 }
