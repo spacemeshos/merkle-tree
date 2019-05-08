@@ -44,6 +44,9 @@ func (c *Writer) SetHash(hashFunc func(lChild, rChild []byte) []byte) {
 	c.hash = hashFunc
 }
 
+// GetReader returns a cache reader that can be passed into GenerateProof. It first flushes the layer writers to support
+// layer writers that have internal buffers that may not be reflected in the reader until flushed. After flushing, this
+// method validates the structure of the cache, including that a base layer is cached.
 func (c *Writer) GetReader() (*Reader, error) {
 	if err := c.flush(); err != nil {
 		return nil, err
