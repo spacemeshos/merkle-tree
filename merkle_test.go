@@ -3,6 +3,7 @@ package merkle
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"github.com/spacemeshos/merkle-tree/cache"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -431,4 +432,66 @@ func decode(r *require.Assertions, hexString string) []byte {
 	hash, err := hex.DecodeString(hexString)
 	r.NoError(err)
 	return hash
+}
+
+// Annotated example explaining how to use this package
+func ExampleTree() {
+	// First, we create a cache writer with caching policy and layer read-writer factory:
+	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
+
+	// We then initialize the tree:
+	tree, err := NewTreeBuilder().WithCacheWriter(cacheWriter).Build()
+	if err != nil {
+		fmt.Println("Error while building the tree:", err.Error())
+		return
+	}
+
+	// We add the leaves one-by-one:
+	for i := uint64(0); i < 8; i++ {
+		err := tree.AddLeaf(NewNodeFromUint64(i))
+		if err != nil {
+			fmt.Println("Error while adding a leaf:", err.Error())
+			return
+		}
+	}
+
+	// After adding some leaves we can access the root of the tree:
+	fmt.Println(tree.Root()) // 89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce
+
+	// If we need to generate a proof, we could derive the proven leaves from the root. Here we create a static set:
+	leavesToProve := setOf(0, 4, 7)
+
+	// We get a cache reader from the cache writer:
+	cacheReader, err := cacheWriter.GetReader()
+	if err != nil {
+		fmt.Println("Error while getting cache reader:", err.Error())
+		return
+	}
+
+	// We pass the cache into GenerateProof along with the set of leaves to prove:
+	sortedProvenLeafIndices, provenLeaves, proof, err := GenerateProof(leavesToProve, cacheReader)
+	if err != nil {
+		fmt.Println("Error while getting generating proof:", err.Error())
+		return
+	}
+
+	// We now have access to a sorted list of proven leaves, the values of those leaves and the Merkle proof for them:
+	fmt.Println(sortedProvenLeafIndices) // 0 4 7
+	fmt.Println(nodes(provenLeaves)) // 0000 0400 0700
+	fmt.Println(nodes(proof)) // 0100 0094 0500 0600
+
+	// We can validate these values using ValidatePartialTree:
+	valid, err := ValidatePartialTree(sortedProvenLeafIndices, provenLeaves, proof, tree.Root(), GetSha256Parent)
+	if err != nil {
+		fmt.Println("Error while validating proof:", err.Error())
+		return
+	}
+	fmt.Println(valid) // true
+
+	/***************************************************
+	|                       89a0                       |
+	|           ba94                    633b           |
+	|     cb59       .0094.       bd50        fa67     |
+	| =0000=.0100. 0200  0300 =0400=.0500..0600.=0700= |
+	***************************************************/
 }
