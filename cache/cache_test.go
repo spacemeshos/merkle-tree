@@ -10,7 +10,8 @@ var someError = errors.New("some error")
 
 type widthReader struct{ width uint64 }
 
-var _ LayerReadWriter = &widthReader{}
+// A compile time check to ensure that widthReader fully implements LayerReadWriter.
+var _ LayerReadWriter = (*widthReader)(nil)
 
 func (r widthReader) Seek(index uint64) error            { return nil }
 func (r widthReader) ReadNext() ([]byte, error)          { return nil, someError }

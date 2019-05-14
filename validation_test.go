@@ -1,4 +1,4 @@
-package merkle
+package merkle_test
 
 import (
 	"fmt"
@@ -300,13 +300,13 @@ func TestValidatePartialTreeErrors(t *testing.T) {
 func TestValidator_calcRoot(t *testing.T) {
 	r := require.New(t)
 	v := validator{
-		leaves:         &leafIterator{},
-		proofNodes:     nil,
-		hash:           nil,
-		storeSnapshots: false,
+		Leaves:         &leafIterator{},
+		ProofNodes:     nil,
+		Hash:           nil,
+		StoreSnapshots: false,
 	}
 
-	root, _, err := v.calcRoot(0)
+	root, _, err := v.CalcRoot(0)
 
 	r.Error(err)
 	r.Equal("no more items", err.Error())

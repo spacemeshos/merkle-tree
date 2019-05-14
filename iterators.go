@@ -7,9 +7,9 @@ import (
 
 var noMoreItems = errors.New("no more items")
 
-type set map[uint64]bool
+type Set map[uint64]bool
 
-func (s set) asSortedSlice() []uint64 {
+func (s Set) AsSortedSlice() []uint64 {
 	var ret []uint64
 	for key, value := range s {
 		if value {
@@ -20,8 +20,8 @@ func (s set) asSortedSlice() []uint64 {
 	return ret
 }
 
-func setOf(members ...uint64) set {
-	ret := make(set)
+func SetOf(members ...uint64) Set {
+	ret := make(Set)
 	for _, member := range members {
 		ret[member] = true
 	}
@@ -32,22 +32,22 @@ type positionsIterator struct {
 	s []uint64
 }
 
-func newPositionsIterator(positions set) *positionsIterator {
-	s := positions.asSortedSlice()
+func NewPositionsIterator(positions Set) *positionsIterator {
+	s := positions.AsSortedSlice()
 	return &positionsIterator{s: s}
 }
 
-func (it *positionsIterator) peek() (pos position, found bool) {
+func (it *positionsIterator) peek() (pos Position, found bool) {
 	if len(it.s) == 0 {
-		return position{}, false
+		return Position{}, false
 	}
 	index := it.s[0]
-	return position{index: index}, true
+	return Position{Index: index}, true
 }
 
 // batchPop returns the indices of all positions up to endIndex.
-func (it *positionsIterator) batchPop(endIndex uint64) set {
-	res := make(set)
+func (it *positionsIterator) batchPop(endIndex uint64) Set {
+	res := make(Set)
 	for len(it.s) > 0 && it.s[0] < endIndex {
 		res[it.s[0]] = true
 		it.s = it.s[1:]
@@ -68,27 +68,27 @@ func (it *proofIterator) next() ([]byte, error) {
 	return n, nil
 }
 
-type leafIterator struct {
+type LeafIterator struct {
 	indices []uint64
 	leaves  [][]byte
 }
 
-// leafIterator.next() returns the leaf index and value
-func (it *leafIterator) next() (position, []byte, error) {
+// LeafIterator.next() returns the leaf index and value
+func (it *LeafIterator) next() (Position, []byte, error) {
 	if len(it.indices) == 0 {
-		return position{}, nil, noMoreItems
+		return Position{}, nil, noMoreItems
 	}
 	idx := it.indices[0]
 	leaf := it.leaves[0]
 	it.indices = it.indices[1:]
 	it.leaves = it.leaves[1:]
-	return position{index: idx}, leaf, nil
+	return Position{Index: idx}, leaf, nil
 }
 
-// leafIterator.peek() returns the leaf index but doesn't move the iterator to this leaf as next would do
-func (it *leafIterator) peek() (position, []byte, error) {
+// LeafIterator.peek() returns the leaf index but doesn't move the iterator to this leaf as next would do
+func (it *LeafIterator) peek() (Position, []byte, error) {
 	if len(it.indices) == 0 {
-		return position{}, nil, noMoreItems
+		return Position{}, nil, noMoreItems
 	}
-	return position{index: it.indices[0]}, it.leaves[0], nil
+	return Position{Index: it.indices[0]}, it.leaves[0], nil
 }

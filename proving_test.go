@@ -1,4 +1,4 @@
-package merkle
+package merkle_test
 
 import (
 	"encoding/hex"
@@ -57,7 +57,7 @@ func TestGenerateProof(t *testing.T) {
 	r.EqualValues(expectedProof, proof)
 
 	var expectedLeaves nodes
-	for _, i := range leavesToProve.asSortedSlice() {
+	for _, i := range leavesToProve.AsSortedSlice() {
 		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
 	}
 	r.EqualValues(expectedLeaves, leaves)
@@ -105,7 +105,7 @@ func BenchmarkGenerateProof(b *testing.B) {
 	r.EqualValues(expectedProof, proof)
 
 	var expectedLeaves nodes
-	for _, i := range leavesToProve.asSortedSlice() {
+	for _, i := range leavesToProve.AsSortedSlice() {
 		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
 	}
 	r.EqualValues(expectedLeaves, leaves)
@@ -153,7 +153,7 @@ func TestGenerateProofWithRoot(t *testing.T) {
 	r.EqualValues(expectedProof, proof)
 
 	var expectedLeaves nodes
-	for _, i := range leavesToProve.asSortedSlice() {
+	for _, i := range leavesToProve.AsSortedSlice() {
 		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
 	}
 	r.EqualValues(expectedLeaves, leaves)
@@ -189,7 +189,7 @@ func TestGenerateProofWithoutCache(t *testing.T) {
 	r.EqualValues(expectedProof, proof)
 
 	var expectedLeaves nodes
-	for _, i := range leavesToProve.asSortedSlice() {
+	for _, i := range leavesToProve.AsSortedSlice() {
 		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
 	}
 	r.EqualValues(expectedLeaves, leaves)
@@ -228,7 +228,7 @@ func TestGenerateProofWithSingleLayerCache(t *testing.T) {
 	r.EqualValues(expectedProof, proof)
 
 	var expectedLeaves nodes
-	for _, i := range leavesToProve.asSortedSlice() {
+	for _, i := range leavesToProve.AsSortedSlice() {
 		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
 	}
 	r.EqualValues(expectedLeaves, leaves)
@@ -267,7 +267,7 @@ func TestGenerateProofWithSingleLayerCache2(t *testing.T) {
 	r.EqualValues(expectedProof, proof)
 
 	var expectedLeaves nodes
-	for _, i := range leavesToProve.asSortedSlice() {
+	for _, i := range leavesToProve.AsSortedSlice() {
 		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
 	}
 	r.EqualValues(expectedLeaves, leaves)
@@ -337,7 +337,7 @@ func TestGenerateProofUnbalanced(t *testing.T) {
 	r.EqualValues(expectedProof, proof)
 
 	var expectedLeaves nodes
-	for _, i := range leavesToProve.asSortedSlice() {
+	for _, i := range leavesToProve.AsSortedSlice() {
 		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
 	}
 	r.EqualValues(expectedLeaves, leaves)
@@ -375,7 +375,7 @@ func TestGenerateProofUnbalanced2(t *testing.T) {
 	r.EqualValues(expectedProof, proof)
 
 	var expectedLeaves nodes
-	for _, i := range leavesToProve.asSortedSlice() {
+	for _, i := range leavesToProve.AsSortedSlice() {
 		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
 	}
 	r.EqualValues(expectedLeaves, leaves)
@@ -413,7 +413,7 @@ func TestGenerateProofUnbalanced3(t *testing.T) {
 	r.EqualValues(expectedProof, proof)
 
 	var expectedLeaves nodes
-	for _, i := range leavesToProve.asSortedSlice() {
+	for _, i := range leavesToProve.AsSortedSlice() {
 		expectedLeaves = append(expectedLeaves, NewNodeFromUint64(i))
 	}
 	r.EqualValues(expectedLeaves, leaves)
@@ -434,7 +434,8 @@ var someError = errors.New("some error")
 
 type seekErrorReader struct{}
 
-var _ cache.LayerReadWriter = &seekErrorReader{}
+// A compile time check to ensure that seekErrorReader fully implements LayerReadWriter.
+var _ cache.LayerReadWriter = (*seekErrorReader)(nil)
 
 func (seekErrorReader) Seek(index uint64) error            { return someError }
 func (seekErrorReader) ReadNext() ([]byte, error)          { panic("implement me") }
@@ -444,7 +445,8 @@ func (seekErrorReader) Flush() error                       { return nil }
 
 type readErrorReader struct{}
 
-var _ cache.LayerReadWriter = &readErrorReader{}
+// A compile time check to ensure that readErrorReader fully implements LayerReadWriter.
+var _ cache.LayerReadWriter = (*readErrorReader)(nil)
 
 func (readErrorReader) Seek(index uint64) error            { return nil }
 func (readErrorReader) ReadNext() ([]byte, error)          { return nil, someError }
@@ -454,7 +456,8 @@ func (readErrorReader) Flush() error                       { return nil }
 
 type seekEOFReader struct{}
 
-var _ cache.LayerReadWriter = &seekEOFReader{}
+// A compile time check to ensure that seekEOFReader fully implements LayerReadWriter.
+var _ cache.LayerReadWriter = (*seekEOFReader)(nil)
 
 func (seekEOFReader) Seek(index uint64) error            { return io.EOF }
 func (seekEOFReader) ReadNext() ([]byte, error)          { panic("implement me") }
@@ -464,7 +467,8 @@ func (seekEOFReader) Flush() error                       { return nil }
 
 type widthReader struct{ width uint64 }
 
-var _ cache.LayerReadWriter = &widthReader{}
+// A compile time check to ensure that widthReader fully implements LayerReadWriter.
+var _ cache.LayerReadWriter = (*widthReader)(nil)
 
 func (r widthReader) Seek(index uint64) error            { return nil }
 func (r widthReader) ReadNext() ([]byte, error)          { return nil, someError }
@@ -485,7 +489,7 @@ func TestGetNode(t *testing.T) {
 	node, err := GetNode(cacheReader, nodePos)
 
 	r.Error(err)
-	r.Equal("while seeking to position <h: 0 i: 0> in cache: some error", err.Error())
+	r.Equal("while seeking to Position <h: 0 i: 0> in cache: some error", err.Error())
 	r.Nil(node)
 
 }
@@ -513,11 +517,11 @@ func TestGetNode3(t *testing.T) {
 
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
-	nodePos := position{height: 1}
+	nodePos := position{Height: 1}
 	node, err := GetNode(cacheReader, nodePos)
 
 	r.Error(err)
-	r.Equal("while seeking to position <h: 0 i: 0> in cache: some error", err.Error())
+	r.Equal("while seeking to Position <h: 0 i: 0> in cache: some error", err.Error())
 	r.Nil(node)
 }
 
@@ -530,11 +534,11 @@ func TestGetNode4(t *testing.T) {
 
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
-	nodePos := position{height: 2}
+	nodePos := position{Height: 2}
 	node, err := GetNode(cacheReader, nodePos)
 
 	r.Error(err)
-	r.Equal("while calculating ephemeral node at position <h: 1 i: 1>: while seeking to position <h: 0 i: 10> in cache: some error", err.Error())
+	r.Equal("while calculating ephemeral node at Position <h: 1 i: 1>: while seeking to Position <h: 0 i: 10> in cache: some error", err.Error())
 	r.Nil(node)
 }
 
@@ -546,7 +550,7 @@ func TestGetNode5(t *testing.T) {
 
 	cacheReader, err := cacheWriter.GetReader()
 	r.NoError(err)
-	nodePos := position{height: 1}
+	nodePos := position{Height: 1}
 	node, err := GetNode(cacheReader, nodePos)
 
 	r.Error(err)

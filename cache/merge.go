@@ -1,0 +1,93 @@
+package cache
+
+import (
+	"errors"
+	"github.com/spacemeshos/merkle-tree"
+	"io"
+)
+
+func Merge(caches []CacheReader) (*Reader, error) {
+	if len(caches) < 2 {
+		return nil, errors.New("number of caches must be at least 2")
+	}
+
+	// Aggregate caches' layers by height.
+	layerGroups := make(map[uint][]LayerReadWriter)
+	for _, cache := range caches {
+		for height, layer := range cache.Layers() {
+			layerGroups[height] = append(layerGroups[height], layer)
+		}
+	}
+
+	// Group layer groups.
+	layers := make(map[uint]LayerReadWriter)
+	for height, layerGroup := range layerGroups {
+		if len(layerGroup) != len(caches) {
+			return nil, errors.New("number of layers per height mismatch")
+		}
+
+		group, err := groupLayers(layerGroup)
+		if err != nil {
+			return nil, err
+		}
+		layers[height] = group
+	}
+
+	cache := &cache{layers: layers}
+	return &Reader{cache}, nil
+}
+
+func BuildTop(cacheReader CacheReader) (*Reader, []byte, error) {
+	// Find the cache highest layer.
+	var maxHeight uint
+	for height := range cacheReader.Layers() {
+		if height > maxHeight {
+			maxHeight = height
+		}
+	}
+
+	// Create a new subtree with the cache highest layer as its leaves.
+	subtreeWriter := NewWriter(MinHeightPolicy(0), MakeSliceReadWriterFactory())
+	subtree, err := merkle.NewTreeBuilder().
+		WithHashFunc(cacheReader.GetHashFunc()).
+		WithCacheWriter(subtreeWriter).
+		Build()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	layer := cacheReader.GetLayerReader(maxHeight)
+	for {
+		val, err := layer.ReadNext()
+		if err != nil {
+			if err == io.EOF {
+				break
+			} else {
+				return nil, nil, err
+			}
+		}
+
+		err = subtree.AddLeaf(val)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	// Create a new cache with the existing layers.
+	newCache := &cache{layers: cacheReader.Layers()}
+
+	// Add the subtree layers on top of the existing ones.
+	for height, layer := range subtreeWriter.layers {
+		if height == 0 {
+			continue
+		}
+		newCache.layers[height+maxHeight] = layer
+	}
+
+	err = newCache.validateStructure()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &Reader{cache: newCache}, subtree.Root(), nil
+}

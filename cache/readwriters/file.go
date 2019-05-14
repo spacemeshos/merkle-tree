@@ -3,6 +3,7 @@ package readwriters
 import (
 	"bufio"
 	"fmt"
+	"github.com/spacemeshos/merkle-tree/shared"
 	"io"
 	"os"
 )
@@ -24,6 +25,9 @@ type FileReadWriter struct {
 	f *os.File
 	b *bufio.ReadWriter
 }
+
+// A compile time check to ensure that FileReadWriter fully implements LayerReadWriter.
+var _ shared.LayerReadWriter = (*FileReadWriter)(nil)
 
 func (rw *FileReadWriter) Seek(index uint64) error {
 	_, err := rw.f.Seek(int64(index*NodeSize), io.SeekStart)
