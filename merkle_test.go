@@ -196,6 +196,7 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 }
 
 func assertWidth(r *require.Assertions, expectedWidth int, layerReader cache.LayerReader) {
+	r.NotNil(layerReader)
 	width, err := layerReader.Width()
 	r.NoError(err)
 	r.Equal(uint64(expectedWidth), width)

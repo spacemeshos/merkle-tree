@@ -33,7 +33,16 @@ func Merge(caches []CacheReader) (*Reader, error) {
 		layers[height] = group
 	}
 
-	cache := &cache{layers: layers}
+	hashFunc := caches[0].GetHashFunc()
+	layerFactory := caches[0].GetLayerFactory()
+	cachingPolicy := caches[0].GetCachingPolicy()
+
+	cache := &cache{
+		layers:           layers,
+		hash:             hashFunc,
+		shouldCacheLayer: cachingPolicy,
+		generateLayer:    layerFactory,
+	}
 	return &Reader{cache}, nil
 }
 
@@ -46,8 +55,13 @@ func BuildTop(cacheReader CacheReader) (*Reader, []byte, error) {
 		}
 	}
 
-	// Create a new subtree with the cache highest layer as its leaves.
-	subtreeWriter := NewWriter(MinHeightPolicy(0), MakeSliceReadWriterFactory())
+	// Create an adjusted caching policy for the new subtree.
+	newCachingPolicy := func(layerHeight uint) bool {
+		return cacheReader.GetCachingPolicy()(maxHeight + layerHeight)
+	}
+
+	// Create a subtree with the cache highest layer as its leaves.
+	subtreeWriter := NewWriter(newCachingPolicy, cacheReader.GetLayerFactory())
 	subtree, err := merkle.NewTreeBuilder().
 		WithHashFunc(cacheReader.GetHashFunc()).
 		WithCacheWriter(subtreeWriter).
@@ -73,10 +87,15 @@ func BuildTop(cacheReader CacheReader) (*Reader, []byte, error) {
 		}
 	}
 
-	// Create a new cache with the existing layers.
-	newCache := &cache{layers: cacheReader.Layers()}
+	// Clone the existing cache.
+	newCache := &cache{
+		layers:           cacheReader.Layers(),
+		hash:             cacheReader.GetHashFunc(),
+		shouldCacheLayer: cacheReader.GetCachingPolicy(),
+		generateLayer:    cacheReader.GetLayerFactory(),
+	}
 
-	// Add the subtree layers on top of the existing ones.
+	// Add the subtree cache layers on top of the existing ones.
 	for height, layer := range subtreeWriter.layers {
 		if height == 0 {
 			continue

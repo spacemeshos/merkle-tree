@@ -15,13 +15,11 @@ type (
 	LayerReadWriter = shared.LayerReadWriter
 	CacheWriter     = shared.CacheWriter
 	CacheReader     = shared.CacheReader
+	LayerFactory    = shared.LayerFactory
+	CachingPolicy   = shared.CachingPolicy
 )
 
 var RootHeightFromWidth = shared.RootHeightFromWidth
-
-type CachingPolicy func(layerHeight uint) (shouldCacheLayer bool)
-
-type LayerFactory func(layerHeight uint) (LayerReadWriter, error)
 
 type Writer struct {
 	*cache
@@ -99,6 +97,14 @@ func (c *Reader) GetLayerReader(layerHeight uint) LayerReader {
 
 func (c *Reader) GetHashFunc() HashFunc {
 	return c.hash
+}
+
+func (c *Reader) GetLayerFactory() LayerFactory {
+	return c.generateLayer
+}
+
+func (c *Reader) GetCachingPolicy() CachingPolicy {
+	return c.shouldCacheLayer
 }
 
 type cache struct {

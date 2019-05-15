@@ -31,4 +31,10 @@ type CacheReader interface {
 	Layers() map[uint]LayerReadWriter
 	GetLayerReader(layerHeight uint) LayerReader
 	GetHashFunc() HashFunc
+	GetLayerFactory() LayerFactory
+	GetCachingPolicy() CachingPolicy
 }
+
+type CachingPolicy func(layerHeight uint) (shouldCacheLayer bool)
+
+type LayerFactory func(layerHeight uint) (LayerReadWriter, error)
