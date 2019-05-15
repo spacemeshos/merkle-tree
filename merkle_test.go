@@ -1,13 +1,38 @@
-package merkle
+package merkle_test
 
 import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/spacemeshos/merkle-tree"
 	"github.com/spacemeshos/merkle-tree/cache"
 	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+)
+
+var (
+	NewTree                                 = merkle.NewTree
+	NewTreeBuilder                          = merkle.NewTreeBuilder
+	NewProvingTree                          = merkle.NewProvingTree
+	NewCachingTree                          = merkle.NewCachingTree
+	GenerateProof                           = merkle.GenerateProof
+	ValidatePartialTree                     = merkle.ValidatePartialTree
+	ValidatePartialTreeWithParkingSnapshots = merkle.ValidatePartialTreeWithParkingSnapshots
+	GetSha256Parent                         = merkle.GetSha256Parent
+	GetNode                                 = merkle.GetNode
+	setOf                                   = merkle.SetOf
+	newSparseBoolStack                      = merkle.NewSparseBoolStack
+	emptyNode                               = merkle.EmptyNode
+	NodeSize                                = merkle.NodeSize
+)
+
+type (
+	set          = merkle.Set
+	position     = merkle.Position
+	validator    = merkle.Validator
+	leafIterator = merkle.LeafIterator
+	CacheReader  = cache.CacheReader
 )
 
 /*
@@ -171,6 +196,7 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 }
 
 func assertWidth(r *require.Assertions, expectedWidth int, layerReader cache.LayerReader) {
+	r.NotNil(layerReader)
 	width, err := layerReader.Width()
 	r.NoError(err)
 	r.Equal(uint64(expectedWidth), width)
@@ -398,7 +424,7 @@ func TestEmptyNode(t *testing.T) {
 	r := require.New(t)
 
 	r.True(emptyNode.IsEmpty())
-	r.False(emptyNode.onProvenPath)
+	r.False(emptyNode.OnProvenPath)
 }
 
 func TestTree_GetParkedNodes(t *testing.T) {
@@ -477,8 +503,8 @@ func ExampleTree() {
 
 	// We now have access to a sorted list of proven leaves, the values of those leaves and the Merkle proof for them:
 	fmt.Println(sortedProvenLeafIndices) // 0 4 7
-	fmt.Println(nodes(provenLeaves)) // 0000 0400 0700
-	fmt.Println(nodes(proof)) // 0100 0094 0500 0600
+	fmt.Println(nodes(provenLeaves))     // 0000 0400 0700
+	fmt.Println(nodes(proof))            // 0100 0094 0500 0600
 
 	// We can validate these values using ValidatePartialTree:
 	valid, err := ValidatePartialTree(sortedProvenLeafIndices, provenLeaves, proof, tree.Root(), GetSha256Parent)

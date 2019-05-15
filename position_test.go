@@ -6,14 +6,14 @@ import (
 )
 
 func TestPosition_isAncestorOf(t *testing.T) {
-	lower := position{
-		index:  0,
-		height: 0,
+	lower := Position{
+		Index:  0,
+		Height: 0,
 	}
 
-	higher := position{
-		index:  0,
-		height: 1,
+	higher := Position{
+		Index:  0,
+		Height: 1,
 	}
 
 	isAncestor := lower.isAncestorOf(higher)

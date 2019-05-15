@@ -2,27 +2,36 @@ package merkle
 
 import (
 	"errors"
-	"github.com/spacemeshos/merkle-tree/cache"
+	"github.com/spacemeshos/merkle-tree/shared"
 	"github.com/spacemeshos/sha256-simd"
 )
 
-const NodeSize = cache.NodeSize
+const NodeSize = shared.NodeSize
 
-type HashFunc func(lChild, rChild []byte) []byte
+type (
+	HashFunc        = shared.HashFunc
+	LayerWriter     = shared.LayerWriter
+	LayerReader     = shared.LayerReader
+	LayerReadWriter = shared.LayerReadWriter
+	CacheWriter     = shared.CacheWriter
+	CacheReader     = shared.CacheReader
+)
 
-var emptyNode node
+var RootHeightFromWidth = shared.RootHeightFromWidth
+
+var EmptyNode node
 
 // PaddingValue is used for padding unbalanced trees. This value should not be permitted at the leaf layer to
 // distinguish padding from actual members of the tree.
 var PaddingValue = node{
 	value:        make([]byte, NodeSize), // Zero filled.
-	onProvenPath: false,
+	OnProvenPath: false,
 }
 
 // node is a node in the merkle tree.
 type node struct {
 	value        []byte
-	onProvenPath bool // Whether this node is an ancestor of a leaf whose membership in the tree is being proven.
+	OnProvenPath bool // Whether this node is an ancestor of a leaf whose membership in the tree is being proven.
 }
 
 func (n node) IsEmpty() bool {
@@ -34,11 +43,11 @@ type layer struct {
 	height  uint
 	parking node // This is where we park a node until its sibling is processed and we can calculate their parent.
 	next    *layer
-	cache   cache.LayerWriter
+	cache   LayerWriter
 }
 
 // ensureNextLayerExists creates the next layer if it doesn't exist.
-func (l *layer) ensureNextLayerExists(cacheWriter *cache.Writer) error {
+func (l *layer) ensureNextLayerExists(cacheWriter shared.CacheWriter) error {
 	if l.next == nil {
 		writer, err := cacheWriter.GetLayerWriter(l.height + 1)
 		if err != nil {
@@ -49,7 +58,7 @@ func (l *layer) ensureNextLayerExists(cacheWriter *cache.Writer) error {
 	return nil
 }
 
-func newLayer(height uint, cache cache.LayerWriter) *layer {
+func newLayer(height uint, cache LayerWriter) *layer {
 	return &layer{height: height, cache: cache}
 }
 
@@ -58,8 +67,8 @@ type sparseBoolStack struct {
 	currentIndex      uint64
 }
 
-func newSparseBoolStack(trueIndices set) *sparseBoolStack {
-	sorted := trueIndices.asSortedSlice()
+func NewSparseBoolStack(trueIndices Set) *sparseBoolStack {
+	sorted := trueIndices.AsSortedSlice()
 	return &sparseBoolStack{sortedTrueIndices: sorted}
 }
 
@@ -85,7 +94,7 @@ type Tree struct {
 	hash          HashFunc
 	proof         [][]byte
 	leavesToProve *sparseBoolStack
-	cacheWriter   *cache.Writer
+	cacheWriter   CacheWriter
 	minHeight     uint
 }
 
@@ -94,7 +103,7 @@ type Tree struct {
 func (t *Tree) AddLeaf(value []byte) error {
 	n := node{
 		value:        value,
-		onProvenPath: t.leavesToProve.Pop(),
+		OnProvenPath: t.leavesToProve.Pop(),
 	}
 	l := t.baseLayer
 	var parent, lChild, rChild node
@@ -122,11 +131,11 @@ func (t *Tree) AddLeaf(value []byte) error {
 
 			// A given node is required in the proof if and only if its parent is an ancestor
 			// of a leaf whose membership in the tree is being proven, but the given node isn't.
-			if parent.onProvenPath {
-				if !lChild.onProvenPath {
+			if parent.OnProvenPath {
+				if !lChild.OnProvenPath {
 					t.proof = append(t.proof, lChild.value)
 				}
-				if !rChild.onProvenPath {
+				if !rChild.OnProvenPath {
 					t.proof = append(t.proof, rChild.value)
 				}
 			}
@@ -187,11 +196,11 @@ func (t *Tree) RootAndProof() ([]byte, [][]byte) {
 
 		// Consider adding children to the ephemeralProof. `onProvenPath` must be explicitly set -- an empty node has
 		// the default value `false` and would never pass this point.
-		if parent.onProvenPath {
-			if !lChild.onProvenPath {
+		if parent.OnProvenPath {
+			if !lChild.OnProvenPath {
 				ephemeralProof = append(ephemeralProof, lChild.value)
 			}
-			if !rChild.onProvenPath {
+			if !rChild.OnProvenPath {
 				ephemeralProof = append(ephemeralProof, rChild.value)
 			}
 		}
@@ -231,7 +240,7 @@ func (t *Tree) calcEphemeralParent(parking, ephemeralNode node) (parent, lChild,
 		lChild, rChild = ephemeralNode, PaddingValue
 
 	default: // both are empty
-		return emptyNode, emptyNode, emptyNode
+		return EmptyNode, EmptyNode, EmptyNode
 	}
 	return t.calcParent(lChild, rChild), lChild, rChild
 }
@@ -240,7 +249,7 @@ func (t *Tree) calcEphemeralParent(parking, ephemeralNode node) (parent, lChild,
 func (t *Tree) calcParent(lChild, rChild node) node {
 	return node{
 		value:        t.hash(lChild.value, rChild.value),
-		onProvenPath: lChild.onProvenPath || rChild.onProvenPath,
+		OnProvenPath: lChild.OnProvenPath || rChild.OnProvenPath,
 	}
 }
 

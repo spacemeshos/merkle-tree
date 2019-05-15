@@ -3,15 +3,30 @@ package cache
 import (
 	"errors"
 	"fmt"
-	"github.com/spacemeshos/merkle-tree/cache/readwriters"
-	"math"
+	"github.com/spacemeshos/merkle-tree/shared"
 )
 
-const NodeSize = 32
+const NodeSize = shared.NodeSize
+
+type (
+	HashFunc        = shared.HashFunc
+	LayerWriter     = shared.LayerWriter
+	LayerReader     = shared.LayerReader
+	LayerReadWriter = shared.LayerReadWriter
+	CacheWriter     = shared.CacheWriter
+	CacheReader     = shared.CacheReader
+	LayerFactory    = shared.LayerFactory
+	CachingPolicy   = shared.CachingPolicy
+)
+
+var RootHeightFromWidth = shared.RootHeightFromWidth
 
 type Writer struct {
 	*cache
 }
+
+// A compile time check to ensure that Writer fully implements CacheWriter.
+var _ CacheWriter = (*Writer)(nil)
 
 func NewWriter(shouldCacheLayer CachingPolicy, generateLayer LayerFactory) *Writer {
 	return &Writer{
@@ -40,14 +55,14 @@ func (c *Writer) GetLayerWriter(layerHeight uint) (LayerWriter, error) {
 	return layerReadWriter, nil
 }
 
-func (c *Writer) SetHash(hashFunc func(lChild, rChild []byte) []byte) {
+func (c *Writer) SetHash(hashFunc HashFunc) {
 	c.hash = hashFunc
 }
 
 // GetReader returns a cache reader that can be passed into GenerateProof. It first flushes the layer writers to support
 // layer writers that have internal buffers that may not be reflected in the reader until flushed. After flushing, this
 // method validates the structure of the cache, including that a base layer is cached.
-func (c *Writer) GetReader() (*Reader, error) {
+func (c *Writer) GetReader() (CacheReader, error) {
 	if err := c.flush(); err != nil {
 		return nil, err
 	}
@@ -69,17 +84,32 @@ type Reader struct {
 	*cache
 }
 
+// A compile time check to ensure that Reader fully implements CacheReader.
+var _ CacheReader = (*Reader)(nil)
+
+func (c *Reader) Layers() map[uint]LayerReadWriter {
+	return c.layers
+}
+
 func (c *Reader) GetLayerReader(layerHeight uint) LayerReader {
 	return c.layers[layerHeight]
 }
 
-func (c *Reader) GetHashFunc() func(lChild, rChild []byte) []byte {
+func (c *Reader) GetHashFunc() HashFunc {
 	return c.hash
+}
+
+func (c *Reader) GetLayerFactory() LayerFactory {
+	return c.generateLayer
+}
+
+func (c *Reader) GetCachingPolicy() CachingPolicy {
+	return c.shouldCacheLayer
 }
 
 type cache struct {
 	layers           map[uint]LayerReadWriter
-	hash             func(lChild, rChild []byte) []byte
+	hash             HashFunc
 	shouldCacheLayer CachingPolicy
 	generateLayer    LayerFactory
 }
@@ -111,35 +141,6 @@ func (c *cache) validateStructure() error {
 		width >>= 1
 	}
 	return nil
-}
-
-type CachingPolicy func(layerHeight uint) (shouldCacheLayer bool)
-
-type LayerFactory func(layerHeight uint) (LayerReadWriter, error)
-
-// LayerReadWriter is a combined reader-writer. Note that the Seek() method only belongs to the LayerReader interface
-// and does not affect the LayerWriter.
-type LayerReadWriter interface {
-	LayerReader
-	LayerWriter
-}
-
-var _ LayerReadWriter = &readwriters.FileReadWriter{}
-var _ LayerReadWriter = &readwriters.SliceReadWriter{}
-
-type LayerReader interface {
-	Seek(index uint64) error
-	ReadNext() ([]byte, error)
-	Width() (uint64, error)
-}
-
-type LayerWriter interface {
-	Append(p []byte) (n int, err error)
-	Flush() error
-}
-
-func RootHeightFromWidth(width uint64) uint {
-	return uint(math.Ceil(math.Log2(float64(width))))
 }
 
 //func (c *cache) Print(bottom, top int) {

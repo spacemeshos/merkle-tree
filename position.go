@@ -2,57 +2,57 @@ package merkle
 
 import "fmt"
 
-type position struct {
-	index  uint64
-	height uint
+type Position struct {
+	Index  uint64
+	Height uint
 }
 
-func (p position) String() string {
-	return fmt.Sprintf("<h: %d i: %b>", p.height, p.index)
+func (p Position) String() string {
+	return fmt.Sprintf("<h: %d i: %b>", p.Height, p.Index)
 }
 
-func (p position) sibling() position {
-	return position{
-		index:  p.index ^ 1,
-		height: p.height,
+func (p Position) sibling() Position {
+	return Position{
+		Index:  p.Index ^ 1,
+		Height: p.Height,
 	}
 }
 
-func (p position) isAncestorOf(other position) bool {
-	if p.height < other.height {
+func (p Position) isAncestorOf(other Position) bool {
+	if p.Height < other.Height {
 		return false
 	}
-	return p.index == (other.index >> (p.height - other.height))
+	return p.Index == (other.Index >> (p.Height - other.Height))
 }
 
-func (p position) isRightSibling() bool {
-	return p.index%2 == 1
+func (p Position) isRightSibling() bool {
+	return p.Index%2 == 1
 }
 
-func (p position) parent() position {
-	return position{
-		index:  p.index >> 1,
-		height: p.height + 1,
+func (p Position) parent() Position {
+	return Position{
+		Index:  p.Index >> 1,
+		Height: p.Height + 1,
 	}
 }
 
-func (p position) leftChild() position {
-	return position{
-		index:  p.index << 1,
-		height: p.height - 1,
+func (p Position) leftChild() Position {
+	return Position{
+		Index:  p.Index << 1,
+		Height: p.Height - 1,
 	}
 }
 
 type positionsStack struct {
-	positions []position
+	positions []Position
 }
 
-func (s *positionsStack) Push(v position) {
+func (s *positionsStack) Push(v Position) {
 	s.positions = append(s.positions, v)
 }
 
 // Check the top of the stack for equality and pop the element if it's equal.
-func (s *positionsStack) PopIfEqual(p position) bool {
+func (s *positionsStack) PopIfEqual(p Position) bool {
 	l := len(s.positions)
 	if l == 0 {
 		return false

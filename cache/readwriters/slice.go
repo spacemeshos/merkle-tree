@@ -1,15 +1,19 @@
 package readwriters
 
 import (
+	"github.com/spacemeshos/merkle-tree/shared"
 	"io"
 )
 
-const NodeSize = 32
+const NodeSize = shared.NodeSize
 
 type SliceReadWriter struct {
 	slice    [][]byte
 	position uint64
 }
+
+// A compile time check to ensure that SliceReadWriter fully implements LayerReadWriter.
+var _ shared.LayerReadWriter = (*SliceReadWriter)(nil)
 
 func (s *SliceReadWriter) Width() (uint64, error) {
 	return uint64(len(s.slice)), nil

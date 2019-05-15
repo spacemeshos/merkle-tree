@@ -17,7 +17,7 @@ func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedR
 	if err != nil {
 		return false, err
 	}
-	root, _, err := v.calcRoot(MaxUint)
+	root, _, err := v.CalcRoot(MaxUint)
 	return bytes.Equal(root, expectedRoot), err
 }
 
@@ -30,11 +30,11 @@ func ValidatePartialTreeWithParkingSnapshots(leafIndices []uint64, leaves, proof
 	if err != nil {
 		return false, nil, err
 	}
-	root, parkingSnapshots, err := v.calcRoot(MaxUint)
+	root, parkingSnapshots, err := v.CalcRoot(MaxUint)
 	return bytes.Equal(root, expectedRoot), parkingSnapshots, err
 }
 
-func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc, storeSnapshots bool) (*validator, error) {
+func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc, storeSnapshots bool) (*Validator, error) {
 	if len(leafIndices) != len(leaves) {
 		return nil, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves),
 			len(leafIndices))
@@ -45,48 +45,48 @@ func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc, s
 	if !sort.SliceIsSorted(leafIndices, func(i, j int) bool { return leafIndices[i] < leafIndices[j] }) {
 		return nil, errors.New("leafIndices are not sorted")
 	}
-	if len(setOf(leafIndices...)) != len(leafIndices) {
+	if len(SetOf(leafIndices...)) != len(leafIndices) {
 		return nil, errors.New("leafIndices contain duplicates")
 	}
 	proofNodes := &proofIterator{proof}
-	leafIt := &leafIterator{leafIndices, leaves}
+	leafIt := &LeafIterator{leafIndices, leaves}
 
-	return &validator{leaves: leafIt, proofNodes: proofNodes, hash: hash, storeSnapshots: storeSnapshots}, nil
+	return &Validator{Leaves: leafIt, ProofNodes: proofNodes, Hash: hash, StoreSnapshots: storeSnapshots}, nil
 }
 
-type validator struct {
-	leaves         *leafIterator
-	proofNodes     *proofIterator
-	hash           HashFunc
-	storeSnapshots bool
+type Validator struct {
+	Leaves         *LeafIterator
+	ProofNodes     *proofIterator
+	Hash           HashFunc
+	StoreSnapshots bool
 }
 
 type ParkingSnapshot [][]byte
 
-func (v *validator) calcRoot(stopAtLayer uint) ([]byte, []ParkingSnapshot, error) {
-	activePos, activeNode, err := v.leaves.next()
+func (v *Validator) CalcRoot(stopAtLayer uint) ([]byte, []ParkingSnapshot, error) {
+	activePos, activeNode, err := v.Leaves.next()
 	if err != nil {
 		return nil, nil, err
 	}
 	var lChild, rChild, sibling []byte
 	var parkingSnapshots, subTreeSnapshots []ParkingSnapshot
-	if v.storeSnapshots {
+	if v.StoreSnapshots {
 		parkingSnapshots = []ParkingSnapshot{nil}
 	}
 	for {
-		if activePos.height == stopAtLayer {
+		if activePos.Height == stopAtLayer {
 			break
 		}
 		// The activeNode's sibling should be calculated iff it's an ancestor of the next proven leaf. Otherwise, the
 		// sibling is the next node in the proof.
-		nextLeafPos, _, err := v.leaves.peek()
+		nextLeafPos, _, err := v.Leaves.peek()
 		if err == nil && activePos.sibling().isAncestorOf(nextLeafPos) {
-			sibling, subTreeSnapshots, err = v.calcRoot(activePos.height)
+			sibling, subTreeSnapshots, err = v.CalcRoot(activePos.Height)
 			if err != nil {
 				return nil, nil, err
 			}
 		} else {
-			sibling, err = v.proofNodes.next()
+			sibling, err = v.ProofNodes.next()
 			if err == noMoreItems {
 				break
 			}
@@ -102,7 +102,7 @@ func (v *validator) calcRoot(stopAtLayer uint) ([]byte, []ParkingSnapshot, error
 				subTreeSnapshots = nil
 			}
 		}
-		activeNode = v.hash(lChild, rChild)
+		activeNode = v.Hash(lChild, rChild)
 		activePos = activePos.parent()
 	}
 	return activeNode, parkingSnapshots, nil

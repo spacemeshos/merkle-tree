@@ -1,11 +1,9 @@
 package merkle
 
-import "github.com/spacemeshos/merkle-tree/cache"
-
 type TreeBuilder struct {
 	hash           HashFunc
-	leavesToProves set
-	cacheWriter    *cache.Writer
+	leavesToProves Set
+	cacheWriter    CacheWriter
 	minHeight      uint
 }
 
@@ -18,7 +16,7 @@ func (tb TreeBuilder) Build() (*Tree, error) {
 		tb.hash = GetSha256Parent
 	}
 	if tb.cacheWriter == nil {
-		tb.cacheWriter = cache.NewWriter(cache.SpecificLayersPolicy(map[uint]bool{}), nil)
+		tb.cacheWriter = disabledCacheWriter{}
 	}
 	tb.cacheWriter.SetHash(tb.hash)
 	writer, err := tb.cacheWriter.GetLayerWriter(0)
@@ -28,7 +26,7 @@ func (tb TreeBuilder) Build() (*Tree, error) {
 	return &Tree{
 		baseLayer:     newLayer(0, writer),
 		hash:          tb.hash,
-		leavesToProve: newSparseBoolStack(tb.leavesToProves),
+		leavesToProve: NewSparseBoolStack(tb.leavesToProves),
 		cacheWriter:   tb.cacheWriter,
 		minHeight:     tb.minHeight,
 	}, nil
@@ -44,7 +42,7 @@ func (tb TreeBuilder) WithLeavesToProve(leavesToProves map[uint64]bool) TreeBuil
 	return tb
 }
 
-func (tb TreeBuilder) WithCacheWriter(cacheWriter *cache.Writer) TreeBuilder {
+func (tb TreeBuilder) WithCacheWriter(cacheWriter CacheWriter) TreeBuilder {
 	tb.cacheWriter = cacheWriter
 	return tb
 }
@@ -62,6 +60,16 @@ func NewProvingTree(leavesToProves map[uint64]bool) (*Tree, error) {
 	return NewTreeBuilder().WithLeavesToProve(leavesToProves).Build()
 }
 
-func NewCachingTree(cacheWriter *cache.Writer) (*Tree, error) {
+func NewCachingTree(cacheWriter CacheWriter) (*Tree, error) {
 	return NewTreeBuilder().WithCacheWriter(cacheWriter).Build()
 }
+
+type disabledCacheWriter struct{}
+
+// A compile time check to ensure that disabledCacheWriter fully implements CacheWriter.
+var _ CacheWriter = (*disabledCacheWriter)(nil)
+
+func (disabledCacheWriter) SetLayer(layerHeight uint, rw LayerReadWriter)        {}
+func (disabledCacheWriter) GetLayerWriter(layerHeight uint) (LayerWriter, error) { return nil, nil }
+func (disabledCacheWriter) SetHash(hashFunc HashFunc)                            {}
+func (disabledCacheWriter) GetReader() (CacheReader, error)                      { return nil, nil }
