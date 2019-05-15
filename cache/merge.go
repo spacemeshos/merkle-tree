@@ -61,13 +61,15 @@ func BuildTop(cacheReader CacheReader) (*Reader, []byte, error) {
 		}
 	}
 
-	// Create an adjusted caching policy for the new subtree.
-	newCachingPolicy := func(layerHeight uint) bool {
-		return cacheReader.GetCachingPolicy()(maxHeight + layerHeight)
-	}
-
-	// Create a subtree with the cache highest layer as its leaves.
-	subtreeWriter := NewWriter(newCachingPolicy, cacheReader.GetLayerFactory())
+	// Create a subtree with adjusted CachingPolicy and LayerFactory.
+	// Use the cache highest layer as its leaves.
+	subtreeWriter := NewWriter(
+		func(layerHeight uint) bool {
+			return cacheReader.GetCachingPolicy()(maxHeight + layerHeight)
+		},
+		func(layerHeight uint) (LayerReadWriter, error) {
+			return cacheReader.GetLayerFactory()(maxHeight + layerHeight)
+		})
 	subtree, err := merkle.NewTreeBuilder().
 		WithHashFunc(cacheReader.GetHashFunc()).
 		WithCacheWriter(subtreeWriter).
