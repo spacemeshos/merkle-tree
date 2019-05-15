@@ -6,6 +6,10 @@ import (
 	"io"
 )
 
+// Merge merges a slice of caches into one unified cache.
+// Layers of all caches per each height are appended and grouped, while
+// the hash function, caching policy and layer factory are taken
+// from the first cache of the slice.
 func Merge(caches []CacheReader) (*Reader, error) {
 	if len(caches) < 2 {
 		return nil, errors.New("number of caches must be at least 2")
@@ -46,6 +50,8 @@ func Merge(caches []CacheReader) (*Reader, error) {
 	return &Reader{cache}, nil
 }
 
+// BuildTop builds the top layers of a cache, and returns
+// its new version in addition to its root.
 func BuildTop(cacheReader CacheReader) (*Reader, []byte, error) {
 	// Find the cache highest layer.
 	var maxHeight uint

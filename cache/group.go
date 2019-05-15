@@ -15,6 +15,7 @@ type GroupLayerReadWriter struct {
 // A compile time check to ensure that GroupLayerReadWriter fully implements LayerReadWriter.
 var _ LayerReadWriter = (*GroupLayerReadWriter)(nil)
 
+// groupLayers groups a slice of layers into one unified layer.
 func groupLayers(layers []LayerReadWriter) (*GroupLayerReadWriter, error) {
 	if len(layers) < 2 {
 		return nil, errors.New("number of layers must be at least 2")
