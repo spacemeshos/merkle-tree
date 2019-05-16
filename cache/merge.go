@@ -30,11 +30,11 @@ func Merge(caches []CacheReader) (*Reader, error) {
 			return nil, errors.New("number of layers per height mismatch")
 		}
 
-		group, err := groupLayers(layerGroup)
+		layer, err := Group(layerGroup)
 		if err != nil {
 			return nil, err
 		}
-		layers[height] = group
+		layers[height] = layer
 	}
 
 	hashFunc := caches[0].GetHashFunc()

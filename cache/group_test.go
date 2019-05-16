@@ -29,7 +29,7 @@ func TestGroupLayers(t *testing.T) {
 	_, _ = layers[2].Append(nodes[8])
 
 	// Group the layers.
-	layer, err := groupLayers(layers)
+	layer, err := Group(layers)
 	r.NoError(err)
 
 	width, err := layer.Width()
@@ -100,7 +100,7 @@ func TestGroupLayersWithShorterLastLayer(t *testing.T) {
 	_, _ = layers[2].Append(nodes[6])
 
 	// Group the layers.
-	layer, err := groupLayers(layers)
+	layer, err := Group(layers)
 	r.NoError(err)
 
 	width, err := layer.Width()
@@ -150,6 +150,6 @@ func TestGroupLayersWithShorterMidLayer(t *testing.T) {
 	_, _ = layers[2].Append(nodes[6])
 
 	// Group the layers.
-	_, err := groupLayers(layers)
+	_, err := Group(layers)
 	r.Equal("layers width mismatch", err.Error())
 }
