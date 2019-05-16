@@ -36,14 +36,28 @@ func TestGroupLayers(t *testing.T) {
 	r.NoError(err)
 	r.Equal(width, uint64(len(nodes)))
 
-	// Iterate over the layer.
+	// Iterate over the group layer.
 	for _, node := range nodes {
 		val, err := layer.ReadNext()
 		r.NoError(err)
 		r.Equal(val, node)
 	}
 
-	// Iterate over the layer with Seek.
+	// Verify EOF.
+	val, err := layer.ReadNext()
+	r.Equal(err, io.EOF)
+	r.Nil(val)
+
+	// Reset the group position, and iterate once again.
+	// This verifies that deactivated-chunks position is being reset.
+	err = layer.Seek(0)
+	for _, node := range nodes {
+		val, err := layer.ReadNext()
+		r.NoError(err)
+		r.Equal(val, node)
+	}
+
+	// Iterate over the group layer with Seek.
 	for i, node := range nodes {
 		err := layer.Seek(uint64(i))
 		r.NoError(err)
@@ -54,7 +68,7 @@ func TestGroupLayers(t *testing.T) {
 	_, err = layer.ReadNext()
 	r.Equal(err, io.EOF)
 
-	// Iterate over the layer with Seek in reverse.
+	// Iterate over the group layer with Seek in reverse.
 	for i := len(nodes) - 1; i >= 0; i-- {
 		err := layer.Seek(uint64(i))
 		r.NoError(err)
@@ -62,24 +76,8 @@ func TestGroupLayers(t *testing.T) {
 		r.NoError(err)
 		r.Equal(val, nodes[i])
 	}
-
-	// Verify that deactivated chunk position is being reset.
-	// (target chunk 1 position 1)
-	err = layer.Seek(uint64(3))
+	err = layer.Seek(0)
 	r.NoError(err)
-	val, err := layer.ReadNext()
-	r.NoError(err)
-	r.Equal(val, nodes[3])
-	// (target chunk 0 position 2)
-	err = layer.Seek(uint64(2))
-	r.NoError(err)
-	val, err = layer.ReadNext()
-	r.NoError(err)
-	r.Equal(val, nodes[2])
-	// (target chunk 1 position 0)
-	val, err = layer.ReadNext()
-	r.NoError(err)
-	r.Equal(val, nodes[3])
 }
 
 func TestGroupLayersWithShorterLastLayer(t *testing.T) {

@@ -66,12 +66,17 @@ func (g *GroupLayerReadWriter) Seek(index uint64) error {
 		return io.EOF
 	}
 
-	// Reset the previous active chunk position
-	// and set the new active chunk.
-	if g.activeChunkIndex != chunkIndex {
-		err := g.chunks[g.activeChunkIndex].Seek(0)
-		if err != nil {
-			return err
+	// If a new chunk was selected, reset all other chunks position.
+	if chunkIndex != g.activeChunkIndex {
+		for i, chunk := range g.chunks {
+			if i == chunkIndex {
+				continue
+			}
+			err := chunk.Seek(0)
+			if err != nil {
+				return err
+
+			}
 		}
 
 		g.activeChunkIndex = chunkIndex
