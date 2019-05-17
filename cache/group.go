@@ -93,6 +93,6 @@ func (g *GroupLayerReadWriter) Width() (uint64, error) {
 	return uint64(len(g.chunks)-1)*g.widthPerChunk + g.lastChunkWidth, nil
 }
 
-func (g *GroupLayerReadWriter) Append(p []byte) (n int, err error) { panic("not implemented") }
+func (g *GroupLayerReadWriter) Append(p []byte) (n int, err error) { return 0, nil }
 
-func (g *GroupLayerReadWriter) Flush() error { panic("not implemented") }
+func (g *GroupLayerReadWriter) Flush() error { return nil }
