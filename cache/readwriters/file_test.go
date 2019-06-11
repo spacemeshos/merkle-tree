@@ -48,6 +48,9 @@ func TestFileReadWriter(t *testing.T) {
 	next, err = readWriter.ReadNext()
 	r.NoError(err)
 	r.Equal(string(makeLabel("else")), string(next))
+
+	err = readWriter.Close()
+	r.NoError(err)
 }
 
 func makeLabel(s string) []byte {
