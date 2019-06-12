@@ -78,6 +78,9 @@ func TestGroupLayers(t *testing.T) {
 	}
 	err = layer.Seek(0)
 	r.NoError(err)
+
+	err = layer.Close()
+	r.NoError(err)
 }
 
 func TestGroupLayersWithShorterLastLayer(t *testing.T) {

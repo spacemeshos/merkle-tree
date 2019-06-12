@@ -45,3 +45,7 @@ func (s *SliceReadWriter) Append(p []byte) (n int, err error) {
 func (s *SliceReadWriter) Flush() error {
 	return nil
 }
+
+func (s *SliceReadWriter) Close() error {
+	return nil
+}

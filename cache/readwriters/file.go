@@ -71,3 +71,19 @@ func (rw *FileReadWriter) Flush() error {
 	}
 	return nil
 }
+
+func (rw *FileReadWriter) Close() error {
+	err := rw.b.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to flush disk writer: %v", err)
+	}
+	rw.b = nil
+
+	err = rw.f.Close()
+	if err != nil {
+		return err
+	}
+	rw.f = nil
+
+	return nil
+}

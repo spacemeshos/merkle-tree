@@ -96,3 +96,13 @@ func (g *GroupLayerReadWriter) Width() (uint64, error) {
 func (g *GroupLayerReadWriter) Append(p []byte) (n int, err error) { return 0, nil }
 
 func (g *GroupLayerReadWriter) Flush() error { return nil }
+
+func (g *GroupLayerReadWriter) Close() error {
+	for _, chunk := range g.chunks {
+		err := chunk.Close()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

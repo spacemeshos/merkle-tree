@@ -18,6 +18,7 @@ func (r widthReader) ReadNext() ([]byte, error)          { return nil, someError
 func (r widthReader) Width() (uint64, error)             { return r.width, nil }
 func (r widthReader) Append(p []byte) (n int, err error) { panic("implement me") }
 func (r widthReader) Flush() error                       { return nil }
+func (r widthReader) Close() error                       { return nil }
 
 func TestCache_ValidateStructure(t *testing.T) {
 	r := require.New(t)
