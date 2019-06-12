@@ -442,6 +442,7 @@ func (seekErrorReader) ReadNext() ([]byte, error)          { panic("implement me
 func (seekErrorReader) Width() (uint64, error)             { return 3, nil }
 func (seekErrorReader) Append(p []byte) (n int, err error) { panic("implement me") }
 func (seekErrorReader) Flush() error                       { return nil }
+func (seekErrorReader) Close() error                       { return nil }
 
 type readErrorReader struct{}
 
@@ -453,6 +454,7 @@ func (readErrorReader) ReadNext() ([]byte, error)          { return nil, someErr
 func (readErrorReader) Width() (uint64, error)             { return 8, nil }
 func (readErrorReader) Append(p []byte) (n int, err error) { panic("implement me") }
 func (readErrorReader) Flush() error                       { return nil }
+func (readErrorReader) Close() error                       { return nil }
 
 type seekEOFReader struct{}
 
@@ -464,6 +466,7 @@ func (seekEOFReader) ReadNext() ([]byte, error)          { panic("implement me")
 func (seekEOFReader) Width() (uint64, error)             { return 1, nil }
 func (seekEOFReader) Append(p []byte) (n int, err error) { panic("implement me") }
 func (seekEOFReader) Flush() error                       { return nil }
+func (seekEOFReader) Close() error                       { return nil }
 
 type widthReader struct{ width uint64 }
 
@@ -475,6 +478,7 @@ func (r widthReader) ReadNext() ([]byte, error)          { return nil, someError
 func (r widthReader) Width() (uint64, error)             { return r.width, nil }
 func (r widthReader) Append(p []byte) (n int, err error) { panic("implement me") }
 func (r widthReader) Flush() error                       { return nil }
+func (r widthReader) Close() error                       { return nil }
 
 func TestGetNode(t *testing.T) {
 	r := require.New(t)
