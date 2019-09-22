@@ -454,6 +454,31 @@ func TestTree_GetParkedNodes(t *testing.T) {
 		tree.GetParkedNodes())
 }
 
+func TestTree_SetParkedNodes(t *testing.T) {
+	r := require.New(t)
+
+	tree, err := NewTreeBuilder().Build()
+	r.NoError(err)
+	r.NoError(tree.SetParkedNodes([][]byte{{0}}))
+	r.NoError(tree.AddLeaf([]byte{1}))
+	parkedNodes := [][]byte{nil, decode(r, "b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2")}
+	r.EqualValues(parkedNodes, tree.GetParkedNodes())
+
+	tree, err = NewTreeBuilder().Build()
+	r.NoError(err)
+	r.NoError(tree.SetParkedNodes(parkedNodes))
+	r.NoError(tree.AddLeaf([]byte{2}))
+	parkedNodes = [][]byte{{2}, decode(r, "b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2")}
+	r.EqualValues(parkedNodes, tree.GetParkedNodes())
+
+	tree, err = NewTreeBuilder().Build()
+	r.NoError(err)
+	r.NoError(tree.SetParkedNodes(parkedNodes))
+	r.NoError(tree.AddLeaf([]byte{3}))
+	parkedNodes = [][]byte{nil, nil, decode(r, "7699a4fdd6b8b6908a344f73b8f05c8e1400f7253f544602c442ff5c65504b24")}
+	r.EqualValues(parkedNodes, tree.GetParkedNodes())
+}
+
 func decode(r *require.Assertions, hexString string) []byte {
 	hash, err := hex.DecodeString(hexString)
 	r.NoError(err)
