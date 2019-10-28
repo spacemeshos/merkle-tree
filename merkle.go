@@ -226,6 +226,25 @@ func (t *Tree) GetParkedNodes() [][]byte {
 	return ret
 }
 
+func (t *Tree) SetParkedNodes(nodes [][]byte) error {
+	layer := t.baseLayer
+	for i := 0; i < len(nodes); i++ {
+		if nodes[i] != nil {
+			layer.parking.value = nodes[i]
+		}
+
+		if i < len(nodes)-1 {
+			err := layer.ensureNextLayerExists(t.cacheWriter)
+			if err != nil {
+				return err
+			}
+			layer = layer.next
+		}
+	}
+
+	return nil
+}
+
 // calcEphemeralParent calculates the parent using the layer parking and ephemeralNode. When one of those is missing it
 // uses PaddingValue to pad. It returns the actual nodes used along with the parent.
 func (t *Tree) calcEphemeralParent(parking, ephemeralNode node) (parent, lChild, rChild node) {
