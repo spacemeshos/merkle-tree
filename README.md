@@ -7,7 +7,7 @@ _TODO_
 
 ## How it Works
 ### Tree Construction
-This library constructs a tree sequentially, in-memory, using `O(log(n)` memory (`n` being the number of tree leaves).
+This library constructs a tree sequentially, in-memory, using `O(log(n))` memory (`n` being the number of tree leaves).
 
 Leaves are added to the tree one-by-one using the `Tree.AddLeaf()` method.
 
