@@ -2,6 +2,8 @@ package merkle
 
 import (
 	"errors"
+	"sync"
+
 	"github.com/spacemeshos/merkle-tree/shared"
 	"github.com/spacemeshos/sha256-simd"
 )
@@ -272,7 +274,18 @@ func (t *Tree) calcParent(lChild, rChild node) node {
 	}
 }
 
+var childrenSlicePool = sync.Pool{
+	New: func() interface{} {
+		return make([]byte, 2*NodeSize)
+	},
+}
+
 func GetSha256Parent(lChild, rChild []byte) []byte {
-	res := sha256.Sum256(append(lChild, rChild...))
+	ti := childrenSlicePool.Get()
+	t := ti.([]byte)
+	n1 := copy(t, lChild)
+	n2 := copy(t[n1:], rChild)
+	res := sha256.Sum256(t[:n1+n2])
+	childrenSlicePool.Put(ti)
 	return res[:]
 }
