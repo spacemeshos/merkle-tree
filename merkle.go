@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"errors"
+
 	"github.com/spacemeshos/merkle-tree/shared"
 	"github.com/spacemeshos/sha256-simd"
 )
@@ -229,7 +230,7 @@ func (t *Tree) GetParkedNodes() [][]byte {
 func (t *Tree) SetParkedNodes(nodes [][]byte) error {
 	layer := t.baseLayer
 	for i := 0; i < len(nodes); i++ {
-		if nodes[i] != nil {
+		if len(nodes[i]) > 0 {
 			layer.parking.value = nodes[i]
 		}
 
