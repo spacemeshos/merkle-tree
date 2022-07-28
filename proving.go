@@ -66,7 +66,6 @@ func GenerateProof(
 			if err != nil {
 				return nil, nil, nil, err
 			}
-
 			proofNodes = append(proofNodes, currentVal)
 		}
 	}
@@ -138,7 +137,6 @@ func traverseSubtree(leafReader LayerReader, width uint64, hash HashFunc, leaves
 func GetNode(c CacheReader, nodePos Position) ([]byte, error) {
 	// Get the cache reader for the requested node's layer.
 	reader := c.GetLayerReader(nodePos.Height)
-
 	// If the cache wasn't found, we calculate the minimal subtree that will get us the required node.
 	if reader == nil {
 		return calcNode(c, nodePos)
