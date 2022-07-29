@@ -50,13 +50,15 @@ func TestValidatePartialTreeForRealz(t *testing.T) {
 }
 
 func TestValidatePartialTreeProofs(t *testing.T) {
-	for n := 1; n < 16; n++ {
+	for n := 1; n <= 32; n++ {
 		for l := 0; l < n; l++ {
-			t.Run(fmt.Sprintf("N%d/L%d/Cache", n, l), func(t *testing.T) {
-				validateFromCache(t, n, l)
-			})
-			t.Run(fmt.Sprintf("N%d/L%d/Scratch", n, l), func(t *testing.T) {
-				validateFromScratch(t, n, l)
+			t.Run(fmt.Sprintf("N%d/L%d", n, l), func(t *testing.T) {
+				t.Run("Cache", func(t *testing.T) {
+					validateFromCache(t, n, l)
+				})
+				t.Run("Scratch", func(t *testing.T) {
+					validateFromScratch(t, n, l)
+				})
 			})
 		}
 	}
@@ -84,7 +86,6 @@ func validateFromCache(t *testing.T, n, l int) {
 	require.NoError(t, err)
 	_, leaves, nodes, err := GenerateProof(setOf(leafIndices...), reader)
 	require.NoError(t, err)
-	fmt.Println(nodes)
 	valid, _, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, nodes, root, GetSha256Parent)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")
@@ -106,7 +107,6 @@ func validateFromScratch(t *testing.T, n, l int) {
 	leaves := [][]byte{
 		NewNodeFromUint64(uint64(l)),
 	}
-	fmt.Println(nodes)
 	valid, _, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, nodes, root, GetSha256Parent)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")

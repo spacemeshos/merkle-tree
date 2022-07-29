@@ -61,7 +61,6 @@ func GenerateProof(
 				skipPositions.Push(currentPos.sibling())
 				break
 			}
-
 			currentVal, err := GetNode(treeCache, currentPos.sibling())
 			if err != nil {
 				return nil, nil, nil, err
@@ -157,17 +156,26 @@ func GetNode(c CacheReader, nodePos Position) ([]byte, error) {
 }
 
 func calcNode(c CacheReader, nodePos Position) ([]byte, error) {
-	var subtreeStart Position
-	var reader LayerReader
-
 	if nodePos.Height == 0 {
 		return nil, ErrMissingValueAtBaseLayer
 	}
-
 	// Find the next cached layer below the current one.
-	for subtreeStart = nodePos; reader == nil; {
+	var subtreeStart = nodePos
+	var reader LayerReader
+	for {
 		subtreeStart = subtreeStart.leftChild()
 		reader = c.GetLayerReader(subtreeStart.Height)
+
+		err := reader.Seek(subtreeStart.Index)
+		if err == nil {
+			break
+		}
+		if err != nil && err != io.EOF {
+			return nil, errors.New("while seeking to Position " + subtreeStart.String() + " in cache: " + err.Error())
+		}
+		if subtreeStart.Height == 0 {
+			return PaddingValue.value, nil
+		}
 	}
 
 	// Prepare the reader for traversing the subtree.
@@ -217,9 +225,14 @@ func subtreeDefinition(c CacheReader, p Position) (root, firstLeaf Position, wid
 		return Position{}, Position{}, 0, err
 	}
 	maxRootHeight := RootHeightFromWidth(width)
-	for root = p.parent(); root.Height < maxRootHeight; root = root.parent() {
-		if layer := c.GetLayerReader(root.Height); layer != nil {
-			break
+	root = p
+	if !(p.Height == 0 && width == 1) {
+		// TODO(dshulyak) doublecheck with @noam if there is more generic fix
+		// failing test case go test ./ -run=TestValidatePartialTreeProofs/N1/L0/Cache -v
+		for root = p.parent(); root.Height < maxRootHeight; root = root.parent() {
+			if layer := c.GetLayerReader(root.Height); layer != nil {
+				break
+			}
 		}
 	}
 	subtreeHeight := root.Height - p.Height
