@@ -49,18 +49,28 @@ func TestValidatePartialTreeForRealz(t *testing.T) {
 	***************************************************/
 }
 
-func TestValidatePartialTreeMultiCache(t *testing.T) {
-	req := require.New(t)
+func TestValidatePartialTreeProofs(t *testing.T) {
+	for n := 1; n < 16; n++ {
+		for l := 0; l < n; l++ {
+			t.Run(fmt.Sprintf("N%d/L%d/Cache", n, l), func(t *testing.T) {
+				validateFromCache(t, n, l)
+			})
+			t.Run(fmt.Sprintf("N%d/L%d/Scratch", n, l), func(t *testing.T) {
+				validateFromScratch(t, n, l)
+			})
+		}
+	}
+}
 
-	n := 18
-	leafIndices := []uint64{14}
+func validateFromCache(t *testing.T, n, l int) {
+	req := require.New(t)
+	leafIndices := []uint64{uint64(l)}
 	metaFactory := cache.MakeSliceReadWriterFactory()
 
 	treeCache := cache.NewWriter(
-		cache.Combine(
-			cache.SpecificLayersPolicy(map[uint]bool{0: true}),
-			cache.MinHeightPolicy(0)),
-		metaFactory)
+		cache.MinHeightPolicy(0),
+		metaFactory,
+	)
 
 	tree, err := NewTreeBuilder().WithCacheWriter(treeCache).Build()
 	req.NoError(err)
@@ -74,18 +84,16 @@ func TestValidatePartialTreeMultiCache(t *testing.T) {
 	require.NoError(t, err)
 	_, leaves, nodes, err := GenerateProof(setOf(leafIndices...), reader)
 	require.NoError(t, err)
-	fmt.Println(leaves, nodes)
-
+	fmt.Println(nodes)
 	valid, _, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, nodes, root, GetSha256Parent)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")
 }
 
-func TestValidatePartialTreeMultiCacheNo(t *testing.T) {
+func validateFromScratch(t *testing.T, n, l int) {
 	req := require.New(t)
 
-	n := 18
-	leafIndices := []uint64{14}
+	leafIndices := []uint64{uint64(l)}
 
 	tree, err := NewProvingTree(setOf(leafIndices...))
 	req.NoError(err)
@@ -96,10 +104,9 @@ func TestValidatePartialTreeMultiCacheNo(t *testing.T) {
 
 	root, nodes := tree.RootAndProof()
 	leaves := [][]byte{
-		NewNodeFromUint64(14),
+		NewNodeFromUint64(uint64(l)),
 	}
-	fmt.Println(leaves, nodes)
-
+	fmt.Println(nodes)
 	valid, _, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, nodes, root, GetSha256Parent)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")
