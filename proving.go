@@ -164,9 +164,8 @@ func calcNode(c CacheReader, nodePos Position) ([]byte, error) {
 	var reader LayerReader
 	for {
 		subtreeStart = subtreeStart.leftChild()
-		fmt.Println(subtreeStart.Height)
-		reader = c.GetLayerReader(subtreeStart.Height)
 
+		reader = c.GetLayerReader(subtreeStart.Height)
 		err := reader.Seek(subtreeStart.Index)
 		if err == nil {
 			break
