@@ -164,6 +164,7 @@ func calcNode(c CacheReader, nodePos Position) ([]byte, error) {
 	var reader LayerReader
 	for {
 		subtreeStart = subtreeStart.leftChild()
+		fmt.Println(subtreeStart.Height)
 		reader = c.GetLayerReader(subtreeStart.Height)
 
 		err := reader.Seek(subtreeStart.Index)
@@ -176,15 +177,6 @@ func calcNode(c CacheReader, nodePos Position) ([]byte, error) {
 		if subtreeStart.Height == 0 {
 			return PaddingValue.value, nil
 		}
-	}
-
-	// Prepare the reader for traversing the subtree.
-	err := reader.Seek(subtreeStart.Index)
-	if err == io.EOF {
-		return PaddingValue.value, nil
-	}
-	if err != nil {
-		return nil, errors.New("while seeking to Position " + subtreeStart.String() + " in cache: " + err.Error())
 	}
 
 	var paddingValue []byte
