@@ -24,47 +24,20 @@ func TestValidatePartialTree(t *testing.T) {
 	req.True(valid, "Proof should be valid, but isn't")
 }
 
-func TestValidatePartialTreeForRealz(t *testing.T) {
-	req := require.New(t)
-
-	leafIndices := []uint64{4}
-	leaves := [][]byte{NewNodeFromUint64(4)}
-	tree, err := NewProvingTree(setOf(leafIndices...))
-	req.NoError(err)
-	for i := uint64(0); i < 8; i++ {
-		err := tree.AddLeaf(NewNodeFromUint64(i))
-		req.NoError(err)
-	}
-	root, proof := tree.RootAndProof() // 89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce, 05 fa ba
-
-	valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
-	req.NoError(err)
-	req.True(valid, "Proof should be valid, but isn't")
-
-	/***************************************************
-	|                       89a0                       |
-	|          .ba94.                   633b           |
-	|     cb59        0094        bd50       .fa67.    |
-	|  0000  0100  0200  0300 =0400=.0500. 0600  0700  |
-	***************************************************/
-}
-
 func TestValidatePartialTreeProofs(t *testing.T) {
-	for n := 1; n <= 32; n++ {
+	for n := 1; n <= 64; n++ {
 		for l := 0; l < n; l++ {
 			t.Run(fmt.Sprintf("N%d/L%d", n, l), func(t *testing.T) {
-				t.Run("Cache", func(t *testing.T) {
-					validateFromCache(t, n, l)
-				})
-				t.Run("Scratch", func(t *testing.T) {
-					validateFromScratch(t, n, l)
-				})
+				r1, p1 := validateFromCache(t, n, l)
+				r2, p2 := validateFromScratch(t, n, l)
+				require.Equal(t, r1, r2)
+				require.Equal(t, p1, p2)
 			})
 		}
 	}
 }
 
-func validateFromCache(t *testing.T, n, l int) {
+func validateFromCache(t *testing.T, n, l int) ([]byte, [][]byte) {
 	req := require.New(t)
 	leafIndices := []uint64{uint64(l)}
 	metaFactory := cache.MakeSliceReadWriterFactory()
@@ -89,9 +62,10 @@ func validateFromCache(t *testing.T, n, l int) {
 	valid, _, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, nodes, root, GetSha256Parent)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")
+	return root, nodes
 }
 
-func validateFromScratch(t *testing.T, n, l int) {
+func validateFromScratch(t *testing.T, n, l int) ([]byte, [][]byte) {
 	req := require.New(t)
 
 	leafIndices := []uint64{uint64(l)}
@@ -110,6 +84,7 @@ func validateFromScratch(t *testing.T, n, l int) {
 	valid, _, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, nodes, root, GetSha256Parent)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")
+	return root, nodes
 }
 
 func TestValidatePartialTreeMulti2(t *testing.T) {

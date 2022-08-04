@@ -1,10 +1,14 @@
 package readwriters
 
 import (
+	"errors"
 	"fmt"
-	"github.com/stretchr/testify/require"
+	"io"
 	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestFileReadWriter(t *testing.T) {
@@ -55,4 +59,13 @@ func TestFileReadWriter(t *testing.T) {
 
 func makeLabel(s string) []byte {
 	return []byte(fmt.Sprintf("%32s", s))
+}
+
+func TestConsistentEOF(t *testing.T) {
+	file, err := NewFileReadWriter(filepath.Join(t.TempDir(), "test"))
+	require.NoError(t, err)
+	slice := SliceReadWriter{}
+
+	require.True(t, errors.Is(slice.Seek(1), io.EOF))
+	require.True(t, errors.Is(file.Seek(1), io.EOF))
 }
