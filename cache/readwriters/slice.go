@@ -1,8 +1,9 @@
 package readwriters
 
 import (
-	"github.com/spacemeshos/merkle-tree/shared"
 	"io"
+
+	"github.com/spacemeshos/merkle-tree/shared"
 )
 
 const NodeSize = shared.NodeSize

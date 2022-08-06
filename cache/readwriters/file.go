@@ -3,9 +3,10 @@ package readwriters
 import (
 	"bufio"
 	"fmt"
-	"github.com/spacemeshos/merkle-tree/shared"
 	"io"
 	"os"
+
+	"github.com/spacemeshos/merkle-tree/shared"
 )
 
 const OwnerReadWrite = 0600
@@ -30,7 +31,14 @@ type FileReadWriter struct {
 var _ shared.LayerReadWriter = (*FileReadWriter)(nil)
 
 func (rw *FileReadWriter) Seek(index uint64) error {
-	_, err := rw.f.Seek(int64(index*NodeSize), io.SeekStart)
+	width, err := rw.Width()
+	if err != nil {
+		return err
+	}
+	if index >= width {
+		return io.EOF
+	}
+	_, err = rw.f.Seek(int64(index*NodeSize), io.SeekStart)
 	if err != nil {
 		return fmt.Errorf("failed to seek in disk reader: %v", err)
 	}

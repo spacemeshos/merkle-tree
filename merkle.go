@@ -2,6 +2,7 @@ package merkle
 
 import (
 	"errors"
+
 	"github.com/spacemeshos/merkle-tree/shared"
 	"github.com/spacemeshos/sha256-simd"
 )
