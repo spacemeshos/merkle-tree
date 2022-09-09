@@ -4,11 +4,12 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/spacemeshos/merkle-tree"
 	"github.com/spacemeshos/merkle-tree/cache"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 var (
@@ -376,7 +377,7 @@ func TestNewCachingTree(t *testing.T) {
 	r.NoError(err)
 	r.Equal(cacheRoot, expectedRoot)
 
-	//cacheWriter.Print(0 , 3)
+	// cacheWriter.Print(0 , 3)
 }
 
 func BenchmarkNewCachingTreeSmall(b *testing.B) {

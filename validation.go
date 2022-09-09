@@ -12,7 +12,8 @@ const MaxUint = ^uint(0)
 // ValidatePartialTree uses leafIndices, leaves and proof to calculate the merkle root of the tree and then compares it
 // to expectedRoot.
 func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
-	hash HashFunc) (bool, error) {
+	hash HashFunc,
+) (bool, error) {
 	v, err := newValidator(leafIndices, leaves, proof, hash, false)
 	if err != nil {
 		return false, err
@@ -25,7 +26,8 @@ func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedR
 // to expectedRoot. Additionally, it reconstructs the parked nodes when each proven leaf was originally added to the
 // tree and returns a list of snapshots. This method is ~15% slower than ValidatePartialTree.
 func ValidatePartialTreeWithParkingSnapshots(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
-	hash HashFunc) (bool, []ParkingSnapshot, error) {
+	hash HashFunc,
+) (bool, []ParkingSnapshot, error) {
 	v, err := newValidator(leafIndices, leaves, proof, hash, true)
 	if err != nil {
 		return false, nil, err

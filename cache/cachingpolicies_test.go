@@ -1,9 +1,10 @@
 package cache
 
 import (
+	"testing"
+
 	"github.com/spacemeshos/merkle-tree/cache/readwriters"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestMakeMemoryReadWriterFactory(t *testing.T) {
