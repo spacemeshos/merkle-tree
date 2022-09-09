@@ -3,6 +3,7 @@ package cache
 import (
 	"errors"
 	"fmt"
+
 	"github.com/spacemeshos/merkle-tree/shared"
 )
 

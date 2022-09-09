@@ -12,7 +12,6 @@ func GenerateProof(
 	provenLeafIndices map[uint64]bool,
 	treeCache CacheReader,
 ) (sortedProvenLeafIndices []uint64, provenLeaves, proofNodes [][]byte, err error) {
-
 	provenLeafIndexIt := NewPositionsIterator(provenLeafIndices)
 	skipPositions := &positionsStack{}
 	width, err := treeCache.GetLayerReader(0).Width()
@@ -73,8 +72,8 @@ func GenerateProof(
 }
 
 func calcSubtreeProof(c CacheReader, leavesToProve Set, subtreeStart Position, width uint64) (
-	additionalProof, additionalLeaves [][]byte, err error) {
-
+	additionalProof, additionalLeaves [][]byte, err error,
+) {
 	// By subtracting subtreeStart.index we get the index relative to the subtree.
 	relativeLeavesToProve := make(Set)
 	for leafIndex, prove := range leavesToProve {
@@ -97,8 +96,8 @@ func calcSubtreeProof(c CacheReader, leavesToProve Set, subtreeStart Position, w
 }
 
 func traverseSubtree(leafReader LayerReader, width uint64, hash HashFunc, leavesToProve Set,
-	externalPadding []byte) (root []byte, proof, provenLeaves [][]byte, err error) {
-
+	externalPadding []byte,
+) (root []byte, proof, provenLeaves [][]byte, err error) {
 	shouldUseExternalPadding := externalPadding != nil
 	t, err := NewTreeBuilder().
 		WithHashFunc(hash).
@@ -160,7 +159,7 @@ func calcNode(c CacheReader, nodePos Position) ([]byte, error) {
 		return nil, ErrMissingValueAtBaseLayer
 	}
 	// Find the next cached layer below the current one.
-	var subtreeStart = nodePos
+	subtreeStart := nodePos
 	var reader LayerReader
 	for {
 		subtreeStart = subtreeStart.leftChild()

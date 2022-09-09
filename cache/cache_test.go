@@ -2,8 +2,9 @@ package cache
 
 import (
 	"errors"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 var someError = errors.New("some error")

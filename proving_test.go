@@ -3,11 +3,12 @@ package merkle_test
 import (
 	"encoding/hex"
 	"errors"
-	"github.com/spacemeshos/merkle-tree/cache"
-	"github.com/stretchr/testify/require"
 	"io"
 	"testing"
 	"time"
+
+	"github.com/spacemeshos/merkle-tree/cache"
+	"github.com/stretchr/testify/require"
 )
 
 /*
@@ -495,7 +496,6 @@ func TestGetNode(t *testing.T) {
 	r.Error(err)
 	r.Equal("while seeking to Position <h: 0 i: 0> in cache: some error", err.Error())
 	r.Nil(node)
-
 }
 
 func TestGetNode2(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"github.com/spacemeshos/merkle-tree/shared"
 )
 
-const OwnerReadWrite = 0600
+const OwnerReadWrite = 0o600
 
 func NewFileReadWriter(filename string) (*FileReadWriter, error) {
 	f, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, OwnerReadWrite)

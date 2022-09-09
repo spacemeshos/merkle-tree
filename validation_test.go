@@ -259,7 +259,7 @@ func BenchmarkValidatePartialTree(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		valid, err := ValidatePartialTree(leafIndices, leaves, proof, root, GetSha256Parent)
-		//valid, _, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, proof, root, GetSha256Parent)
+		// valid, _, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, proof, root, GetSha256Parent)
 		req.NoError(err)
 		req.True(valid, "Proof should be valid, but isn't")
 	}

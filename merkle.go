@@ -3,8 +3,8 @@ package merkle
 import (
 	"errors"
 
+	"github.com/minio/sha256-simd"
 	"github.com/spacemeshos/merkle-tree/shared"
-	"github.com/spacemeshos/sha256-simd"
 )
 
 const NodeSize = shared.NodeSize
