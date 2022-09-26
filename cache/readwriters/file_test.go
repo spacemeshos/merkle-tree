@@ -63,6 +63,7 @@ func makeLabel(s string) []byte {
 
 func TestConsistentEOF(t *testing.T) {
 	file, err := NewFileReadWriter(filepath.Join(t.TempDir(), "test"))
+	t.Cleanup(func() { file.Close() })
 	require.NoError(t, err)
 	slice := SliceReadWriter{}
 
