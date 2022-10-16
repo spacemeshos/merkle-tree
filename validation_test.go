@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/spacemeshos/merkle-tree/cache"
 	"github.com/stretchr/testify/require"
+
+	"github.com/spacemeshos/merkle-tree/cache"
 )
 
 func TestValidatePartialTree(t *testing.T) {

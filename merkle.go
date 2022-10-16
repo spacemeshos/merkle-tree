@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/minio/sha256-simd"
+
 	"github.com/spacemeshos/merkle-tree/shared"
 )
 
