@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/spacemeshos/merkle-tree"
 	"github.com/spacemeshos/merkle-tree/cache"
-	"github.com/stretchr/testify/require"
 )
 
 var (
