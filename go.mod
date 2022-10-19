@@ -1,6 +1,6 @@
 module github.com/spacemeshos/merkle-tree
 
-go 1.18
+go 1.19
 
 require (
 	github.com/minio/sha256-simd v1.0.0
