@@ -4,7 +4,7 @@ go 1.19
 
 require (
 	github.com/minio/sha256-simd v1.0.0
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 )
 
 require (
