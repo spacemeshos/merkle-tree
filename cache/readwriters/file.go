@@ -11,14 +11,14 @@ import (
 
 const OwnerReadWrite = 0o600
 
-func NewFileReadWriter(filename string) (*FileReadWriter, error) {
+func NewFileReadWriter(filename string, bufferSize int) (*FileReadWriter, error) {
 	f, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, OwnerReadWrite)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file for disk read-writer: %v", err)
 	}
 	return &FileReadWriter{
 		f: f,
-		b: bufio.NewReadWriter(bufio.NewReader(f), bufio.NewWriter(f)),
+		b: bufio.NewReadWriter(bufio.NewReader(f), bufio.NewWriterSize(f, bufferSize)),
 	}, nil
 }
 

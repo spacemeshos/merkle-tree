@@ -13,6 +13,12 @@ type SliceReadWriter struct {
 	position uint64
 }
 
+func NewSliceReadWriter(initialSize int) *SliceReadWriter {
+	return &SliceReadWriter{
+		slice: make([][]byte, 0, initialSize),
+	}
+}
+
 // A compile time check to ensure that SliceReadWriter fully implements LayerReadWriter.
 var _ shared.LayerReadWriter = (*SliceReadWriter)(nil)
 
