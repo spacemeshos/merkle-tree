@@ -214,8 +214,7 @@ func (t *Tree) RootAndProof() ([]byte, [][]byte) {
 	return ephemeralNode.value, ephemeralProof
 }
 
-func (t *Tree) GetParkedNodes() [][]byte {
-	var ret [][]byte
+func (t *Tree) GetParkedNodes(ret [][]byte) [][]byte {
 	layer := t.baseLayer
 	for {
 		ret = append(ret, layer.parking.value)
