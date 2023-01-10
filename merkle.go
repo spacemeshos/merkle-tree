@@ -124,6 +124,8 @@ func (t *Tree) AddLeaf(value []byte) error {
 		// If no node is pending, then this node is a left sibling,
 		// pending for its right sibling before its parent can be calculated.
 		if l.parking.IsEmpty() {
+			// Copy the byte slice as we will keep it for a while.
+			n.value = append([]byte(nil), n.value...)
 			l.parking = n
 			break
 		} else {
