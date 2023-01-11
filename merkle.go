@@ -40,18 +40,6 @@ func (n node) IsEmpty() bool {
 	return len(n.value) == 0
 }
 
-// Copy deep-copies node
-func (n node) copyInto(dst *node) {
-	dst.OnProvenPath = n.OnProvenPath
-	dst.value = append(dst.value[:0], n.value...)
-}
-
-func (n node) clear() node {
-	n.OnProvenPath = false
-	n.value = n.value[:0]
-	return n
-}
-
 // layer is a layer in the merkle tree.
 type layer struct {
 	height  uint
@@ -110,7 +98,6 @@ type Tree struct {
 	leavesToProve *sparseBoolStack
 	cacheWriter   CacheWriter
 	minHeight     uint
-	parentCache   node
 }
 
 // AddLeaf incorporates a new leaf to the state of the tree. It updates the state required to eventually determine the
@@ -121,11 +108,8 @@ func (t *Tree) AddLeaf(value []byte) error {
 		OnProvenPath: t.leavesToProve.Pop(),
 	}
 	l := t.baseLayer
-	var lChild, rChild node
+	var parent, lChild, rChild node
 	var lastCachingError error
-
-	t.parentCache = t.parentCache.clear()
-	parent := &t.parentCache
 
 	// Loop through the layers, starting from the base layer.
 	for {
@@ -147,21 +131,23 @@ func (t *Tree) AddLeaf(value []byte) error {
 		} else {
 			// This node is a right sibling.
 			lChild, rChild = l.parking, n
-			t.calcParent(lChild, rChild).copyInto(parent)
+			parent = t.calcParent(lChild, rChild)
 
 			// A given node is required in the proof if and only if its parent is an ancestor
 			// of a leaf whose membership in the tree is being proven, but the given node isn't.
 			if parent.OnProvenPath {
 				if !lChild.OnProvenPath {
-					t.proof = append(t.proof, lChild.value)
+					copy := append([]byte(nil), lChild.value...)
+					t.proof = append(t.proof, copy)
 				}
 				if !rChild.OnProvenPath {
-					t.proof = append(t.proof, rChild.value)
+					copy := append([]byte(nil), rChild.value...)
+					t.proof = append(t.proof, copy)
 				}
 			}
 
 			l.parking.value = l.parking.value[:0]
-			n = *parent
+			n = parent
 			err := l.ensureNextLayerExists(t.cacheWriter)
 			if err != nil {
 				return err
@@ -282,8 +268,7 @@ func (t *Tree) calcEphemeralParent(parking, ephemeralNode node) (parent, lChild,
 	default: // both are empty
 		return EmptyNode, EmptyNode, EmptyNode
 	}
-	t.calcParent(lChild, rChild).copyInto(&parent)
-	return
+	return t.calcParent(lChild, rChild), lChild, rChild
 }
 
 // calcParent returns the parent node of two child nodes.
