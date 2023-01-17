@@ -37,7 +37,7 @@ type node struct {
 }
 
 func (n node) IsEmpty() bool {
-	return n.value == nil
+	return len(n.value) == 0
 }
 
 // layer is a layer in the merkle tree.
@@ -98,6 +98,7 @@ type Tree struct {
 	leavesToProve *sparseBoolStack
 	cacheWriter   CacheWriter
 	minHeight     uint
+	parentBuf     []byte
 }
 
 // AddLeaf incorporates a new leaf to the state of the tree. It updates the state required to eventually determine the
@@ -108,7 +109,6 @@ func (t *Tree) AddLeaf(value []byte) error {
 		OnProvenPath: t.leavesToProve.Pop(),
 	}
 	l := t.baseLayer
-	var parent, lChild, rChild node
 	var lastCachingError error
 
 	// Loop through the layers, starting from the base layer.
@@ -124,25 +124,31 @@ func (t *Tree) AddLeaf(value []byte) error {
 		// If no node is pending, then this node is a left sibling,
 		// pending for its right sibling before its parent can be calculated.
 		if l.parking.IsEmpty() {
-			l.parking = n
+			// Copy the byte slice as we will keep it for a while.
+			l.parking.value = append(l.parking.value[:0], n.value...)
+			l.parking.OnProvenPath = n.OnProvenPath
 			break
 		} else {
 			// This node is a right sibling.
-			lChild, rChild = l.parking, n
-			parent = t.calcParent(lChild, rChild)
+			lChild, rChild := l.parking, n
 
 			// A given node is required in the proof if and only if its parent is an ancestor
 			// of a leaf whose membership in the tree is being proven, but the given node isn't.
-			if parent.OnProvenPath {
+			if lChild.OnProvenPath || rChild.OnProvenPath {
 				if !lChild.OnProvenPath {
-					t.proof = append(t.proof, lChild.value)
+					copy := append([]byte(nil), lChild.value...)
+					t.proof = append(t.proof, copy)
 				}
 				if !rChild.OnProvenPath {
-					t.proof = append(t.proof, rChild.value)
+					copy := append([]byte(nil), rChild.value...)
+					t.proof = append(t.proof, copy)
 				}
 			}
 
-			l.parking.value = nil
+			parent := t.calcParent(t.parentBuf[:0], lChild, rChild)
+			t.parentBuf = parent.value
+
+			l.parking.value = l.parking.value[:0]
 			n = parent
 			err := l.ensureNextLayerExists(t.cacheWriter)
 			if err != nil {
@@ -264,18 +270,21 @@ func (t *Tree) calcEphemeralParent(parking, ephemeralNode node) (parent, lChild,
 	default: // both are empty
 		return EmptyNode, EmptyNode, EmptyNode
 	}
-	return t.calcParent(lChild, rChild), lChild, rChild
+	return t.calcParent(nil, lChild, rChild), lChild, rChild
 }
 
-// calcParent returns the parent node of two child nodes.
-func (t *Tree) calcParent(lChild, rChild node) node {
+// calcParent calculates the parent node of two child nodes.
+// The buf can be used to reuse memory for hashing.
+func (t *Tree) calcParent(buf []byte, lChild, rChild node) node {
 	return node{
-		value:        t.hash(lChild.value, rChild.value),
+		value:        t.hash(buf, lChild.value, rChild.value),
 		OnProvenPath: lChild.OnProvenPath || rChild.OnProvenPath,
 	}
 }
 
-func GetSha256Parent(lChild, rChild []byte) []byte {
-	res := sha256.Sum256(append(lChild, rChild...))
-	return res[:]
+func GetSha256Parent(buf, lChild, rChild []byte) []byte {
+	hasher := sha256.New()
+	hasher.Write(lChild)
+	hasher.Write(rChild)
+	return hasher.Sum(buf)
 }

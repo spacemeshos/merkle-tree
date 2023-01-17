@@ -104,7 +104,7 @@ func (v *Validator) CalcRoot(stopAtLayer uint) ([]byte, []ParkingSnapshot, error
 				subTreeSnapshots = nil
 			}
 		}
-		activeNode = v.Hash(lChild, rChild)
+		activeNode = v.Hash(nil, lChild, rChild)
 		activePos = activePos.parent()
 	}
 	return activeNode, parkingSnapshots, nil

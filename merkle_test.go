@@ -63,7 +63,7 @@ func TestNewTree(t *testing.T) {
 	r.Equal(expectedRoot, root)
 }
 
-func concatLeaves(lChild, rChild []byte) []byte {
+func concatLeaves(_, lChild, rChild []byte) []byte {
 	if len(lChild) == NodeSize {
 		lChild = lChild[:1]
 	}
@@ -192,8 +192,7 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 	expectedProof[3], _ = NewNodeFromHex("0600000000000000000000000000000000000000000000000000000000000000")
 	expectedProof[4], _ = NewNodeFromHex("bc68417a8495de6e22d95b980fca5a1183f29eff0e2a9b7ddde91ed5bcbea952")
 
-	var proof nodes
-	proof = tree.Proof()
+	proof := tree.Proof()
 	r.EqualValues(expectedProof, proof)
 }
 
@@ -292,6 +291,38 @@ func TestNewProvingTreeMultiProof(t *testing.T) {
 	for i := uint64(0); i < 8; i++ {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
+	}
+	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
+	root := tree.Root()
+	r.Equal(expectedRoot, root)
+
+	expectedProof := make([][]byte, 4)
+	expectedProof[0], _ = NewNodeFromHex("0000000000000000000000000000000000000000000000000000000000000000")
+	expectedProof[1], _ = NewNodeFromHex("0094579cfc7b716038d416a311465309bea202baa922b224a7b08f01599642fb")
+	expectedProof[2], _ = NewNodeFromHex("0500000000000000000000000000000000000000000000000000000000000000")
+	expectedProof[3], _ = NewNodeFromHex("fa670379e5c2212ed93ff09769622f81f98a91e1ec8fb114d607dd25220b9088")
+
+	proof := tree.Proof()
+	r.EqualValues(expectedProof, proof)
+
+	/***************************************************
+	|                       89a0                       |
+	|           ba94                    633b           |
+	|     cb59       .0094.       bd50       .fa67.    |
+	| .0000.=0100= 0200  0300 =0400=.0500. 0600  0700  |
+	***************************************************/
+}
+
+// TestNewProvingTreeMultiProofReuseLeafBytes verifies if the user of Tree
+// can safely reuse the memory passed into Tree::AddLeaf.
+func TestNewProvingTreeMultiProofReuseLeafBytes(t *testing.T) {
+	r := require.New(t)
+	tree, err := NewProvingTree(setOf(1, 4))
+	r.NoError(err)
+	var leaf [32]byte
+	for i := uint64(0); i < 8; i++ {
+		binary.LittleEndian.PutUint64(leaf[:], i)
+		r.NoError(tree.AddLeaf(leaf[:]))
 	}
 	expectedRoot, _ := NewNodeFromHex("89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce")
 	root := tree.Root()
@@ -442,7 +473,7 @@ func TestTree_GetParkedNodes(t *testing.T) {
 
 	r.NoError(tree.AddLeaf([]byte{1}))
 	r.EqualValues(
-		[][]byte{nil, decode(r, "b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2")},
+		[][]byte{{}, decode(r, "b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2")},
 		tree.GetParkedNodes(nil))
 
 	r.NoError(tree.AddLeaf([]byte{2}))
@@ -452,7 +483,7 @@ func TestTree_GetParkedNodes(t *testing.T) {
 
 	r.NoError(tree.AddLeaf([]byte{3}))
 	r.EqualValues(
-		[][]byte{nil, nil, decode(r, "7699a4fdd6b8b6908a344f73b8f05c8e1400f7253f544602c442ff5c65504b24")},
+		[][]byte{{}, {}, decode(r, "7699a4fdd6b8b6908a344f73b8f05c8e1400f7253f544602c442ff5c65504b24")},
 		tree.GetParkedNodes(nil))
 }
 
@@ -463,7 +494,7 @@ func TestTree_SetParkedNodes(t *testing.T) {
 	r.NoError(err)
 	r.NoError(tree.SetParkedNodes([][]byte{{0}}))
 	r.NoError(tree.AddLeaf([]byte{1}))
-	parkedNodes := [][]byte{nil, decode(r, "b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2")}
+	parkedNodes := [][]byte{{}, decode(r, "b413f47d13ee2fe6c845b2ee141af81de858df4ec549a58b7970bb96645bc8d2")}
 	r.EqualValues(parkedNodes, tree.GetParkedNodes(nil))
 
 	tree, err = NewTreeBuilder().Build()
@@ -477,7 +508,7 @@ func TestTree_SetParkedNodes(t *testing.T) {
 	r.NoError(err)
 	r.NoError(tree.SetParkedNodes(parkedNodes))
 	r.NoError(tree.AddLeaf([]byte{3}))
-	parkedNodes = [][]byte{nil, nil, decode(r, "7699a4fdd6b8b6908a344f73b8f05c8e1400f7253f544602c442ff5c65504b24")}
+	parkedNodes = [][]byte{{}, {}, decode(r, "7699a4fdd6b8b6908a344f73b8f05c8e1400f7253f544602c442ff5c65504b24")}
 	r.EqualValues(parkedNodes, tree.GetParkedNodes(nil))
 }
 
