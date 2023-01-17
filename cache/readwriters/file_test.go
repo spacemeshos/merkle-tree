@@ -15,7 +15,7 @@ func TestFileReadWriter(t *testing.T) {
 	r := require.New(t)
 
 	filename := "delete.me"
-	readWriter, err := NewFileReadWriter(filename)
+	readWriter, err := NewFileReadWriter(filename, 4096)
 	r.NoError(err)
 
 	defer func() {
@@ -62,7 +62,7 @@ func makeLabel(s string) []byte {
 }
 
 func TestConsistentEOF(t *testing.T) {
-	file, err := NewFileReadWriter(filepath.Join(t.TempDir(), "test"))
+	file, err := NewFileReadWriter(filepath.Join(t.TempDir(), "test"), 4096)
 	t.Cleanup(func() { file.Close() })
 	require.NoError(t, err)
 	slice := SliceReadWriter{}
