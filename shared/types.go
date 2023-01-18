@@ -1,6 +1,6 @@
 package shared
 
-type HashFunc func(lChild, rChild []byte) []byte
+type HashFunc func(buf, lChild, rChild []byte) []byte
 
 // LayerReadWriter is a combined reader-writer. Note that the Seek() method only belongs to the LayerReader interface
 // and does not affect the LayerWriter.
