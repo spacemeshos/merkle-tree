@@ -321,7 +321,6 @@ func TestValidator_calcRoot(t *testing.T) {
 
 	root, _, err := v.CalcRoot(0)
 
-	r.Error(err)
-	r.Equal("no more items", err.Error())
+	r.EqualError(err, "no more items")
 	r.Nil(root)
 }

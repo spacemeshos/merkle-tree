@@ -494,8 +494,7 @@ func TestGetNode(t *testing.T) {
 	nodePos := position{}
 	node, err := GetNode(cacheReader, nodePos)
 
-	r.Error(err)
-	r.Equal("while seeking to Position <h: 0 i: 0> in cache: some error", err.Error())
+	r.EqualError(err, "while seeking to Position <h: 0 i: 0> in cache: some error")
 	r.Nil(node)
 }
 
@@ -509,8 +508,7 @@ func TestGetNode2(t *testing.T) {
 	nodePos := position{}
 	node, err := GetNode(cacheReader, nodePos)
 
-	r.Error(err)
-	r.Equal("while reading from cache: some error", err.Error())
+	r.EqualError(err, "while reading from cache: some error")
 	r.Nil(node)
 }
 
@@ -525,8 +523,7 @@ func TestGetNode3(t *testing.T) {
 	nodePos := position{Height: 1}
 	node, err := GetNode(cacheReader, nodePos)
 
-	r.Error(err)
-	r.Equal("while seeking to Position <h: 0 i: 0> in cache: some error", err.Error())
+	r.EqualError(err, "while seeking to Position <h: 0 i: 0> in cache: some error")
 	r.Nil(node)
 }
 
@@ -542,8 +539,7 @@ func TestGetNode4(t *testing.T) {
 	nodePos := position{Height: 2}
 	node, err := GetNode(cacheReader, nodePos)
 
-	r.Error(err)
-	r.Equal("while calculating ephemeral node at Position <h: 1 i: 1>: while seeking to Position <h: 0 i: 10> in cache: some error", err.Error())
+	r.EqualError(err, "while calculating ephemeral node at Position <h: 1 i: 1>: while seeking to Position <h: 0 i: 10> in cache: some error")
 	r.Nil(node)
 }
 
@@ -558,8 +554,7 @@ func TestGetNode5(t *testing.T) {
 	nodePos := position{Height: 1}
 	node, err := GetNode(cacheReader, nodePos)
 
-	r.Error(err)
-	r.Equal("while traversing subtree for root: while reading a leaf: some error", err.Error())
+	r.EqualError(err, "while traversing subtree for root: while reading a leaf: some error")
 	r.Nil(node)
 }
 
@@ -568,7 +563,6 @@ func TestCache_ValidateStructure(t *testing.T) {
 	cacheWriter := cache.NewWriter(nil, nil)
 	cacheReader, err := cacheWriter.GetReader()
 
-	r.Error(err)
-	r.Equal("reader for base layer must be included", err.Error())
+	r.EqualError(err, "reader for base layer must be included")
 	r.Nil(cacheReader)
 }
