@@ -1,8 +1,5 @@
 name: CI
 
-env:
-  go-version: "1.19"
-
 # Controls when the action will run. Triggers the workflow on push or pull request
 # events but only for the develop branch
 on:
@@ -25,7 +22,8 @@ jobs:
       - name: set up go
         uses: actions/setup-go@v4
         with:
-          go-version: ${{ env.go-version }}
+          check-latest: true
+          go-version-file: "go.mod"
 
       - name: build
         run: go build -v ./...

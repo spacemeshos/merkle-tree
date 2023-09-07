@@ -1,7 +1,7 @@
 package merkle
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/minio/sha256-simd"
 
@@ -117,7 +117,7 @@ func (t *Tree) AddLeaf(value []byte) error {
 		if l.cache != nil {
 			_, err := l.cache.Append(n.value)
 			if err != nil {
-				lastCachingError = errors.New("error while caching: " + err.Error())
+				lastCachingError = fmt.Errorf("error while caching: %w", err)
 			}
 		}
 

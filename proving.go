@@ -84,12 +84,12 @@ func calcSubtreeProof(c CacheReader, leavesToProve Set, subtreeStart Position, w
 	reader := c.GetLayerReader(0)
 	err = reader.Seek(subtreeStart.Index)
 	if err != nil {
-		return nil, nil, errors.New("while preparing to traverse subtree: " + err.Error())
+		return nil, nil, fmt.Errorf("while preparing to traverse subtree: %w", err)
 	}
 
 	_, additionalProof, additionalLeaves, err = traverseSubtree(reader, width, c.GetHashFunc(), relativeLeavesToProve, nil)
 	if err != nil {
-		return nil, nil, errors.New("while traversing subtree: " + err.Error())
+		return nil, nil, fmt.Errorf("while traversing subtree: %w", err)
 	}
 
 	return additionalProof, additionalLeaves, err
@@ -105,7 +105,7 @@ func traverseSubtree(leafReader LayerReader, width uint64, hash HashFunc, leaves
 		WithMinHeight(RootHeightFromWidth(width)). // This ensures the correct size tree, even if padding is needed.
 		Build()
 	if err != nil {
-		return nil, nil, nil, errors.New("while building a tree: " + err.Error())
+		return nil, nil, nil, fmt.Errorf("while building a tree: %w", err)
 	}
 	for i := uint64(0); i < width; i++ {
 		leaf, err := leafReader.ReadNext()
@@ -117,11 +117,11 @@ func traverseSubtree(leafReader LayerReader, width uint64, hash HashFunc, leaves
 			leaf = externalPadding
 			shouldUseExternalPadding = false
 		} else if err != nil {
-			return nil, nil, nil, errors.New("while reading a leaf: " + err.Error())
+			return nil, nil, nil, fmt.Errorf("while reading a leaf: %w", err)
 		}
 		err = t.AddLeaf(leaf)
 		if err != nil {
-			return nil, nil, nil, errors.New("while adding a leaf: " + err.Error())
+			return nil, nil, nil, fmt.Errorf("while adding a leaf: %w", err)
 		}
 		if leavesToProve[i] {
 			provenLeaves = append(provenLeaves, leaf)
@@ -145,11 +145,11 @@ func GetNode(c CacheReader, nodePos Position) ([]byte, error) {
 		return calcNode(c, nodePos)
 	}
 	if err != nil {
-		return nil, errors.New("while seeking to Position " + nodePos.String() + " in cache: " + err.Error())
+		return nil, fmt.Errorf("while seeking to Position %s in cache: %w", nodePos, err)
 	}
 	currentVal, err := reader.ReadNext()
 	if err != nil {
-		return nil, errors.New("while reading from cache: " + err.Error())
+		return nil, fmt.Errorf("while reading from cache: %w", err)
 	}
 	return currentVal, nil
 }
@@ -173,7 +173,7 @@ func calcNode(c CacheReader, nodePos Position) ([]byte, error) {
 			break
 		}
 		if err != nil && err != io.EOF {
-			return nil, errors.New("while seeking to Position " + subtreeStart.String() + " in cache: " + err.Error())
+			return nil, fmt.Errorf("while seeking to Position %s in cache: %w", subtreeStart, err)
 		}
 		if subtreeStart.Height == 0 {
 			return PaddingValue.value, nil
@@ -184,7 +184,7 @@ func calcNode(c CacheReader, nodePos Position) ([]byte, error) {
 	width := uint64(1) << (nodePos.Height - subtreeStart.Height)
 	readerWidth, err := reader.Width()
 	if err != nil {
-		return nil, fmt.Errorf("while getting reader width: %v", err)
+		return nil, fmt.Errorf("while getting reader width: %w", err)
 	}
 	if readerWidth < subtreeStart.Index+width {
 		paddingPos := Position{
@@ -195,14 +195,14 @@ func calcNode(c CacheReader, nodePos Position) ([]byte, error) {
 		if err == ErrMissingValueAtBaseLayer {
 			paddingValue = PaddingValue.value
 		} else if err != nil {
-			return nil, errors.New("while calculating ephemeral node at Position " + paddingPos.String() + ": " + err.Error())
+			return nil, fmt.Errorf("while calculating ephemeral node at Position %s: %w", paddingPos, err)
 		}
 	}
 
 	// Traverse the subtree.
 	currentVal, _, _, err := traverseSubtree(reader, width, c.GetHashFunc(), nil, paddingValue)
 	if err != nil {
-		return nil, errors.New("while traversing subtree for root: " + err.Error())
+		return nil, fmt.Errorf("while traversing subtree for root: %w", err)
 	}
 	return currentVal, nil
 }
