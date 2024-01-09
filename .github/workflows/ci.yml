@@ -14,7 +14,9 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - [self-hosted, linux-arm64]
           - macos-latest
+          - macos-13-xlarge
           - windows-latest
     steps:
       - name: checkout
