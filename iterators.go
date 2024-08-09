@@ -73,7 +73,7 @@ type LeafIterator struct {
 	leaves  [][]byte
 }
 
-// LeafIterator.next() returns the leaf index and value
+// LeafIterator.next() returns the leaf index and value.
 func (it *LeafIterator) next() (Position, []byte, error) {
 	if len(it.indices) == 0 {
 		return Position{}, nil, noMoreItems
@@ -85,7 +85,7 @@ func (it *LeafIterator) next() (Position, []byte, error) {
 	return Position{Index: idx}, leaf, nil
 }
 
-// LeafIterator.peek() returns the leaf index but doesn't move the iterator to this leaf as next would do
+// LeafIterator.peek() returns the leaf index but doesn't move the iterator to this leaf as next would do.
 func (it *LeafIterator) peek() (Position, []byte, error) {
 	if len(it.indices) == 0 {
 		return Position{}, nil, noMoreItems

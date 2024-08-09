@@ -36,7 +36,13 @@ func ValidatePartialTreeWithParkingSnapshots(leafIndices []uint64, leaves, proof
 	return bytes.Equal(root, expectedRoot), parkingSnapshots, err
 }
 
-func newValidator(leafIndices []uint64, leaves, proof [][]byte, hash HashFunc, storeSnapshots bool) (*Validator, error) {
+func newValidator(
+	leafIndices []uint64,
+	leaves,
+	proof [][]byte,
+	hash HashFunc,
+	storeSnapshots bool,
+) (*Validator, error) {
 	if len(leafIndices) != len(leaves) {
 		return nil, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves),
 			len(leafIndices))
@@ -79,7 +85,7 @@ func (v *Validator) CalcRoot(stopAtLayer uint) ([]byte, []ParkingSnapshot, error
 		if activePos.Height == stopAtLayer {
 			break
 		}
-		// The activeNode's sibling should be calculated iff it's an ancestor of the next proven leaf. Otherwise, the
+		// The activeNode's sibling should be calculated if it's an ancestor of the next proven leaf. Otherwise, the
 		// sibling is the next node in the proof.
 		nextLeafPos, _, err := v.Leaves.peek()
 		if err == nil && activePos.sibling().isAncestorOf(nextLeafPos) {

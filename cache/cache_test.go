@@ -28,7 +28,7 @@ func TestCache_ValidateStructure(t *testing.T) {
 	treeCache := &cache{layers: readers}
 	err := treeCache.validateStructure()
 
-	r.Error(err,"reader for base layer must be included")
+	r.Error(err, "reader for base layer must be included")
 }
 
 func TestCache_ValidateStructure2(t *testing.T) {
@@ -38,7 +38,7 @@ func TestCache_ValidateStructure2(t *testing.T) {
 	treeCache := &cache{layers: readers}
 	err := treeCache.validateStructure()
 
-	r.Error(err,"reader for base layer must be included")
+	r.Error(err, "reader for base layer must be included")
 }
 
 func TestCache_ValidateStructureSuccess(t *testing.T) {
@@ -64,7 +64,7 @@ func TestCache_ValidateStructureFail(t *testing.T) {
 	treeCache := &cache{layers: readers}
 	err := treeCache.validateStructure()
 
-	r.Error(err,"reader at layer 1 has width 2 instead of 1")
+	r.Error(err, "reader at layer 1 has width 2 instead of 1")
 }
 
 func TestCache_ValidateStructureFail2(t *testing.T) {
@@ -77,5 +77,5 @@ func TestCache_ValidateStructureFail2(t *testing.T) {
 	treeCache := &cache{layers: readers}
 	err := treeCache.validateStructure()
 
-	r.Error(err,"reader at layer 1 has width 1 instead of 2")
+	r.Error(err, "reader at layer 1 has width 1 instead of 2")
 }

@@ -145,7 +145,7 @@ func TestGenerateProofWithRoot(t *testing.T) {
 	assertWidth(r, 1, cacheReader.GetLayerReader(3))
 	cacheRoot, err := cacheReader.GetLayerReader(3).ReadNext()
 	r.NoError(err)
-	r.Equal(cacheRoot, expectedRoot)
+	r.Equal(expectedRoot, cacheRoot)
 
 	var leaves, proof, expectedProof nodes
 	sortedIndices, leaves, proof, err := GenerateProof(leavesToProve, cacheReader)
@@ -165,7 +165,10 @@ func TestGenerateProofWithRoot(t *testing.T) {
 func TestGenerateProofWithoutCache(t *testing.T) {
 	r := require.New(t)
 	leavesToProve := setOf(0, 4, 7)
-	cacheWriter := cache.NewWriter(cache.SpecificLayersPolicy(map[uint]bool{0: true}), cache.MakeSliceReadWriterFactory())
+	cacheWriter := cache.NewWriter(
+		cache.SpecificLayersPolicy(map[uint]bool{0: true}),
+		cache.MakeSliceReadWriterFactory(),
+	)
 	tree, _ := NewTreeBuilder().
 		WithCacheWriter(cacheWriter).
 		WithLeavesToProve(leavesToProve).
@@ -539,7 +542,7 @@ func TestGetNode4(t *testing.T) {
 	nodePos := position{Height: 2}
 	node, err := GetNode(cacheReader, nodePos)
 
-	r.EqualError(err, "while calculating ephemeral node at Position <h: 1 i: 1>: while seeking to Position <h: 0 i: 10> in cache: some error")
+	r.ErrorIs(err, someError)
 	r.Nil(node)
 }
 

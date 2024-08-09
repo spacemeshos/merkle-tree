@@ -87,7 +87,13 @@ func calcSubtreeProof(c CacheReader, leavesToProve Set, subtreeStart Position, w
 		return nil, nil, fmt.Errorf("while preparing to traverse subtree: %w", err)
 	}
 
-	_, additionalProof, additionalLeaves, err = traverseSubtree(reader, width, c.GetHashFunc(), relativeLeavesToProve, nil)
+	_, additionalProof, additionalLeaves, err = traverseSubtree(
+		reader,
+		width,
+		c.GetHashFunc(),
+		relativeLeavesToProve,
+		nil,
+	)
 	if err != nil {
 		return nil, nil, fmt.Errorf("while traversing subtree: %w", err)
 	}
@@ -172,7 +178,7 @@ func calcNode(c CacheReader, nodePos Position) ([]byte, error) {
 		if err == nil {
 			break
 		}
-		if err != nil && err != io.EOF {
+		if !errors.Is(err, io.EOF) {
 			return nil, fmt.Errorf("while seeking to Position %s in cache: %w", subtreeStart, err)
 		}
 		if subtreeStart.Height == 0 {
