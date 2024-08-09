@@ -63,6 +63,7 @@ jobs:
         with:
           check-latest: true
           go-version-file: "go.mod"
+          cache: ${{ runner.arch != 'arm64' }}
       - name: setup env
         run: make install
       - name: Clear test cache
@@ -97,5 +98,3 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
