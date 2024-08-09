@@ -133,13 +133,20 @@ func TestValidatePartialTreeParkingSnapshots(t *testing.T) {
 	}
 	root, proof := tree.RootAndProof() // 89a0f1577268cc19b0a39c7a69f804fd140640c699585eb635ebb03c06154cce, 05 07 ba
 
-	valid, parkingSnapshots, err := ValidatePartialTreeWithParkingSnapshots(leafIndices, leaves, proof, root, GetSha256Parent)
+	valid, parkingSnapshots, err := ValidatePartialTreeWithParkingSnapshots(
+		leafIndices,
+		leaves,
+		proof,
+		root,
+		GetSha256Parent,
+	)
 	req.NoError(err)
 	req.True(valid, "Proof should be valid, but isn't")
-	req.Equal(
-		"[[  ba94ffe7edabf26ef12736f8eb5ce74d15bedb6af61444ae2906e926b1a95084] "+
-			"[ bd50456d5ad175ae99a1612a53ca229124b65d3eaabd9ff9c7ab979a385cf6b3 ba94ffe7edabf26ef12736f8eb5ce74d15bedb6af61444ae2906e926b1a95084]]",
-		fmt.Sprintf("%x", parkingSnapshots))
+	//nolint:lll
+	req.Equal("[[  ba94ffe7edabf26ef12736f8eb5ce74d15bedb6af61444ae2906e926b1a95084] "+
+		"[ bd50456d5ad175ae99a1612a53ca229124b65d3eaabd9ff9c7ab979a385cf6b3 ba94ffe7edabf26ef12736f8eb5ce74d15bedb6af61444ae2906e926b1a95084]]",
+		fmt.Sprintf("%x", parkingSnapshots),
+	)
 
 	/***************************************************
 	|                       89a0                       |

@@ -1,7 +1,6 @@
 package readwriters
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -67,6 +66,6 @@ func TestConsistentEOF(t *testing.T) {
 	require.NoError(t, err)
 	slice := SliceReadWriter{}
 
-	require.True(t, errors.Is(slice.Seek(1), io.EOF))
-	require.True(t, errors.Is(file.Seek(1), io.EOF))
+	require.ErrorIs(t, slice.Seek(1), io.EOF)
+	require.ErrorIs(t, file.Seek(1), io.EOF)
 }

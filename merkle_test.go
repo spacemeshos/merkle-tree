@@ -108,7 +108,7 @@ func TestNewTreeWithMinHeightGreater2(t *testing.T) {
 		err := tree.AddLeaf(NewNodeFromUint64(i))
 		r.NoError(err)
 	}
-	// An 8-leaf tree is 3 layers high, so setting a minHeight of 5 means we need to add two "padding nodes" to the root.
+	// An 8-leaf tree is 3 layers high, so setting a minHeight of 5 requires to add two "padding nodes" to the root.
 	expectedRoot, _ := NewNodeFromHex("00010203040506070000")
 	root := tree.Root()
 	r.Equal(expectedRoot, root)
@@ -183,7 +183,7 @@ func TestNewTreeUnbalancedProof(t *testing.T) {
 
 	cacheRoot, err := cacheReader.GetLayerReader(3).ReadNext()
 	r.NoError(err)
-	r.NotEqual(cacheRoot, expectedRoot)
+	r.NotEqual(expectedRoot, cacheRoot)
 
 	expectedProof := make([][]byte, 5)
 	expectedProof[0], _ = NewNodeFromHex("0100000000000000000000000000000000000000000000000000000000000000")
@@ -407,7 +407,7 @@ func TestNewCachingTree(t *testing.T) {
 	assertWidth(r, 1, cacheReader.GetLayerReader(3))
 	cacheRoot, err := cacheReader.GetLayerReader(3).ReadNext()
 	r.NoError(err)
-	r.Equal(cacheRoot, expectedRoot)
+	r.Equal(expectedRoot, cacheRoot)
 
 	// cacheWriter.Print(0 , 3)
 }
@@ -518,7 +518,7 @@ func decode(r *require.Assertions, hexString string) []byte {
 	return hash
 }
 
-// Annotated example explaining how to use this package
+// Annotated example explaining how to use this package.
 func ExampleTree() {
 	// First, we create a cache writer with caching policy and layer read-writer factory:
 	cacheWriter := cache.NewWriter(cache.MinHeightPolicy(0), cache.MakeSliceReadWriterFactory())
