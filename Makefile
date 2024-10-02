@@ -1,4 +1,4 @@
-GOLANGCI_LINT_VERSION := v1.59.0
+GOLANGCI_LINT_VERSION := v1.61.0
 GOTESTSUM_VERSION := v1.12.0
 
 all: build test
@@ -42,7 +42,6 @@ clear-test-cache:
 .PHONY: clear-test-cache
 
 lint:
-	go vet ./...
 	./bin/golangci-lint run --config .golangci.yml
 .PHONY: lint
 
@@ -50,11 +49,6 @@ lint:
 lint-fix:
 	./bin/golangci-lint run --config .golangci.yml --fix
 .PHONY: lint-fix
-
-lint-github-action:
-	go vet ./...
-	./bin/golangci-lint run --config .golangci.yml --out-format=github-actions
-.PHONY: lint-github-action
 
 cover:
 	go test -coverprofile=cover.out -timeout 0 -p 1 -coverpkg=./... $(UNIT_TESTS)
