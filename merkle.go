@@ -104,6 +104,9 @@ type Tree struct {
 // AddLeaf incorporates a new leaf to the state of the tree. It updates the state required to eventually determine the
 // root of the tree and also updates the proof, if applicable.
 func (t *Tree) AddLeaf(value []byte) error {
+	if len(value) != NodeSize {
+		return fmt.Errorf("expected node size %d, got %d", NodeSize, len(value))
+	}
 	n := node{
 		value:        value,
 		OnProvenPath: t.leavesToProve.Pop(),

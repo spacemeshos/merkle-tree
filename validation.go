@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"sort"
+
+	"golang.org/x/exp/slices"
 )
 
 const MaxUint = ^uint(0)
 
 // ValidatePartialTree uses leafIndices, leaves and proof to calculate the merkle root of the tree and then compares it
 // to expectedRoot.
-func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
+func ValidatePartialTree(
+	leafIndices []uint64,
+	leaves, proof [][]byte,
+	expectedRoot []byte,
 	hash HashFunc,
 ) (bool, error) {
 	v, err := newValidator(leafIndices, leaves, proof, hash, false)
@@ -25,7 +29,10 @@ func ValidatePartialTree(leafIndices []uint64, leaves, proof [][]byte, expectedR
 // ValidatePartialTree uses leafIndices, leaves and proof to calculate the merkle root of the tree and then compares it
 // to expectedRoot. Additionally, it reconstructs the parked nodes when each proven leaf was originally added to the
 // tree and returns a list of snapshots. This method is ~15% slower than ValidatePartialTree.
-func ValidatePartialTreeWithParkingSnapshots(leafIndices []uint64, leaves, proof [][]byte, expectedRoot []byte,
+func ValidatePartialTreeWithParkingSnapshots(
+	leafIndices []uint64,
+	leaves, proof [][]byte,
+	expectedRoot []byte,
 	hash HashFunc,
 ) (bool, []ParkingSnapshot, error) {
 	v, err := newValidator(leafIndices, leaves, proof, hash, true)
@@ -38,22 +45,20 @@ func ValidatePartialTreeWithParkingSnapshots(leafIndices []uint64, leaves, proof
 
 func newValidator(
 	leafIndices []uint64,
-	leaves,
-	proof [][]byte,
+	leaves, proof [][]byte,
 	hash HashFunc,
 	storeSnapshots bool,
 ) (*Validator, error) {
 	if len(leafIndices) != len(leaves) {
-		return nil, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves),
-			len(leafIndices))
+		return nil, fmt.Errorf("number of leaves (%d) must equal number of indices (%d)", len(leaves), len(leafIndices))
 	}
 	if len(leaves) == 0 {
 		return nil, errors.New("at least one leaf is required for validation")
 	}
-	if !sort.SliceIsSorted(leafIndices, func(i, j int) bool { return leafIndices[i] < leafIndices[j] }) {
+	if !slices.IsSorted(leafIndices) {
 		return nil, errors.New("leafIndices are not sorted")
 	}
-	if len(SetOf(leafIndices...)) != len(leafIndices) {
+	if len(slices.Compact(leafIndices)) != len(leafIndices) {
 		return nil, errors.New("leafIndices contain duplicates")
 	}
 	proofNodes := &proofIterator{proof}
