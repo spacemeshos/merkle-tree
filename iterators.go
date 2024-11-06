@@ -2,7 +2,9 @@ package merkle
 
 import (
 	"errors"
-	"sort"
+	"slices"
+
+	"golang.org/x/exp/maps"
 )
 
 var noMoreItems = errors.New("no more items")
@@ -10,18 +12,13 @@ var noMoreItems = errors.New("no more items")
 type Set map[uint64]bool
 
 func (s Set) AsSortedSlice() []uint64 {
-	var ret []uint64
-	for key, value := range s {
-		if value {
-			ret = append(ret, key)
-		}
-	}
-	sort.Slice(ret, func(i, j int) bool { return ret[i] < ret[j] })
+	ret := maps.Keys(s)
+	slices.Sort(ret)
 	return ret
 }
 
 func SetOf(members ...uint64) Set {
-	ret := make(Set)
+	ret := make(Set, len(members))
 	for _, member := range members {
 		ret[member] = true
 	}
