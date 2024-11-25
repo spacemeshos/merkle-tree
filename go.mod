@@ -4,7 +4,7 @@ go 1.23.2
 
 require (
 	github.com/minio/sha256-simd v1.0.1
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c
 )
 
